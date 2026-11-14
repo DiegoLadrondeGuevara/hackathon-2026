@@ -1,0 +1,409 @@
+# Recursos de AWS. Las tablas siguen contracts/tables.md y aws/tests/schema.py.
+Conditions:
+  ExternalOn: !Equals ['${self:custom.flags.external}', 'true']
+  HasOpsEmail: !Not [!Equals ['${self:custom.flags.opsEmail}', '']]
+
+Resources:
+  # ---------------- DynamoDB ----------------
+  ReportsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-Reports
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+        - {AttributeName: gsi1pk, AttributeType: S}
+        - {AttributeName: gsi1sk, AttributeType: S}
+        - {AttributeName: gsi2pk, AttributeType: S}
+        - {AttributeName: gsi2sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-customer
+          KeySchema:
+            - {AttributeName: gsi1pk, KeyType: HASH}
+            - {AttributeName: gsi1sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2-zone
+          KeySchema:
+            - {AttributeName: gsi2pk, KeyType: HASH}
+            - {AttributeName: gsi2sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      TimeToLiveSpecification: {AttributeName: ttl, Enabled: true}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  IncidentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-Incidents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+        - {AttributeName: gsi1pk, AttributeType: S}
+        - {AttributeName: gsi1sk, AttributeType: S}
+        - {AttributeName: gsi2pk, AttributeType: S}
+        - {AttributeName: gsi2sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-zone
+          KeySchema:
+            - {AttributeName: gsi1pk, KeyType: HASH}
+            - {AttributeName: gsi1sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2-queue
+          KeySchema:
+            - {AttributeName: gsi2pk, KeyType: HASH}
+            - {AttributeName: gsi2sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  TelemetryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-Telemetry
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+        - {AttributeName: gsi1pk, AttributeType: S}
+        - {AttributeName: gsi1sk, AttributeType: S}
+        - {AttributeName: gsi2pk, AttributeType: S}
+        - {AttributeName: gsi2sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-zone
+          KeySchema:
+            - {AttributeName: gsi1pk, KeyType: HASH}
+            - {AttributeName: gsi1sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2-open
+          KeySchema:
+            - {AttributeName: gsi2pk, KeyType: HASH}
+            - {AttributeName: gsi2sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  CorrelationMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-CorrelationMembers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      TimeToLiveSpecification: {AttributeName: ttl, Enabled: true}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  NetworkCatalogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-NetworkCatalog
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+        - {AttributeName: gsi1pk, AttributeType: S}
+        - {AttributeName: gsi1sk, AttributeType: S}
+        - {AttributeName: gsi2pk, AttributeType: S}
+        - {AttributeName: gsi2sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-type
+          KeySchema:
+            - {AttributeName: gsi1pk, KeyType: HASH}
+            - {AttributeName: gsi1sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2-zone
+          KeySchema:
+            - {AttributeName: gsi2pk, KeyType: HASH}
+            - {AttributeName: gsi2sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  CustomerProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-CustomerProfiles
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+  OutboxTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.prefix}-Outbox
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      StreamSpecification: {StreamViewType: NEW_IMAGE}
+      TimeToLiveSpecification: {AttributeName: ttl, Enabled: true}
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: ${self:custom.flags.pitr}
+
+  # ---------------- Colas (cada una con su DLQ) ----------------
+  ColaReportesDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaReportes-dlq
+      MessageRetentionPeriod: 1209600
+  ColaReportes:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaReportes
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaReportesDlq.Arn
+        maxReceiveCount: 5
+  ColaAnomaliasDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaAnomalias-dlq
+      MessageRetentionPeriod: 1209600
+  ColaAnomalias:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaAnomalias
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaAnomaliasDlq.Arn
+        maxReceiveCount: 5
+  ColaMetricasDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaMetricas-dlq
+      MessageRetentionPeriod: 1209600
+  ColaMetricas:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaMetricas
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaMetricasDlq.Arn
+        maxReceiveCount: 5
+  ColaNotificacionesDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaNotificaciones-dlq
+      MessageRetentionPeriod: 1209600
+  ColaNotificaciones:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaNotificaciones
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaNotificacionesDlq.Arn
+        maxReceiveCount: 5
+  ColaGcpDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaGCP-dlq
+      MessageRetentionPeriod: 1209600
+  ColaGcp:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaGCP
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaGcpDlq.Arn
+        maxReceiveCount: 5
+  ColaAzureDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaAzure-dlq
+      MessageRetentionPeriod: 1209600
+  ColaAzure:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-ColaAzure
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ColaAzureDlq.Arn
+        maxReceiveCount: 5
+  OutboxStreamDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:custom.prefix}-OutboxStream-dlq
+      MessageRetentionPeriod: 1209600
+
+  # Permiso para que las reglas del bus escriban en las colas
+  ColasPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ColaReportes
+        - !Ref ColaAnomalias
+        - !Ref ColaNotificaciones
+        - !Ref ColaGcp
+        - !Ref ColaAzure
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PermitirReglasDelBus
+            Effect: Allow
+            Principal: {Service: events.amazonaws.com}
+            Action: sqs:SendMessage
+            Resource:
+              - !GetAtt ColaReportes.Arn
+              - !GetAtt ColaAnomalias.Arn
+              - !GetAtt ColaNotificaciones.Arn
+              - !GetAtt ColaGcp.Arn
+              - !GetAtt ColaAzure.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${self:custom.prefix}-operaciones/*
+
+  # ---------------- EventBridge ----------------
+  OperacionesBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: ${self:custom.prefix}-operaciones
+
+  ReglaReportesCreados:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaReportesCreados
+      EventBusName: !Ref OperacionesBus
+      State: ENABLED
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [report.created]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaReportes.Arn
+  ReglaAnomalias:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaAnomalias
+      EventBusName: !Ref OperacionesBus
+      State: ENABLED
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [telemetry.anomaly, telemetry.recovered, telemetry.recurrent]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaAnomalias.Arn
+  ReglaVerificarIncidente:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaVerificarIncidente
+      EventBusName: !Ref OperacionesBus
+      State: ENABLED
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [incident.updated]
+        detail:
+          data:
+            change: [CREATED, EVIDENCE, THRESHOLD, RECOVERY]
+      Targets:
+        - Id: maquina
+          Arn: !Ref VerificarIncidenteMachine
+          RoleArn: ${self:custom.labRole}
+          InputTransformer:
+            InputPathsMap:
+              incident_id: $.detail.data.incident_id
+              event_id: $.detail.event_id
+              change: $.detail.data.change
+            InputTemplate: '{"incident_id": <incident_id>, "trigger_event_id": <event_id>, "change": <change>}'
+  ReglaNotificarHito:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaNotificarHito
+      EventBusName: !Ref OperacionesBus
+      State: ENABLED
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [incident.updated]
+        detail:
+          data:
+            milestone: [EVALUACION, CONFIRMADO, RESTABLECIDO]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaNotificaciones.Arn
+  ReglaNotificarVinculo:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaNotificarVinculo
+      EventBusName: !Ref OperacionesBus
+      State: ENABLED
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [report.linked]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaNotificaciones.Arn
+  ReglaHaciaGcp:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaHaciaGcp
+      EventBusName: !Ref OperacionesBus
+      State: !If [ExternalOn, ENABLED, DISABLED]
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [report.created, report.status_changed, report.linked, telemetry.anomaly, telemetry.recovered, telemetry.recurrent, incident.updated]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaGcp.Arn
+  ReglaHaciaAzure:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.prefix}-ReglaHaciaAzure
+      EventBusName: !Ref OperacionesBus
+      State: !If [ExternalOn, ENABLED, DISABLED]
+      EventPattern:
+        source: [red-telecorp]
+        detail-type: [incident.updated]
+      Targets:
+        - Id: cola
+          Arn: !GetAtt ColaAzure.Arn
+
+  # ---------------- SNS (alertas internas) y S3 (lotes de métricas) ----------------
+  AlertasOperacionesTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:custom.prefix}-alertas-operaciones
+  AlertasOperacionesEmail:
+    Type: AWS::SNS::Subscription
+    Condition: HasOpsEmail
+    Properties:
+      TopicArn: !Ref AlertasOperacionesTopic
+      Protocol: email
+      Endpoint: ${self:custom.flags.opsEmail}
+  MetricsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.prefix}-metricas-${self:custom.accountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - {Id: expirar-lotes, Status: Enabled, ExpirationInDays: 2}
+
+Outputs:
+  OperacionesBusName:
+    Value: !Ref OperacionesBus
+  MetricsBucketName:
+    Value: !Ref MetricsBucket

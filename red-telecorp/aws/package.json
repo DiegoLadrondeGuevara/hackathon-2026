@@ -1,0 +1,14 @@
+{
+  "name": "red-telecorp-aws",
+  "private": true,
+  "scripts": {
+    "package": "serverless package --stage dev",
+    "deploy": "serverless deploy --stage dev",
+    "info": "serverless info --stage dev",
+    "remove": "serverless remove --stage dev"
+  },
+  "devDependencies": {
+    "serverless": "^3.40.0",
+    "serverless-step-functions": "^3.23.0"
+  }
+}

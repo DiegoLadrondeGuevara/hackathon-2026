@@ -1,0 +1,10 @@
+.env
+.env.*
+*.pem
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.serverless/
+node_modules/
+.claude/settings.local.json

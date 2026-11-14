@@ -1,0 +1,219 @@
+# --- API pública y protegida ---
+autenticarUsuario:
+  name: ${self:custom.prefix}-AutenticarUsuario
+  handler: src/handlers/autenticar_usuario.handler
+  events:
+    - httpApi:
+        method: POST
+        path: /auth/login
+
+autorizarJwt:
+  name: ${self:custom.prefix}-AutorizarJWT
+  handler: src/handlers/autorizar_jwt.handler
+  timeout: 5
+
+listarZonas:
+  name: ${self:custom.prefix}-ListarZonas
+  handler: src/handlers/listar_zonas.handler
+  events:
+    - httpApi:
+        method: GET
+        path: /zonas
+        authorizer:
+          name: jwtAuthorizer
+
+crearReporte:
+  name: ${self:custom.prefix}-CrearReporte
+  handler: src/handlers/crear_reporte.handler
+  events:
+    - httpApi:
+        method: POST
+        path: /reportes
+        authorizer:
+          name: jwtAuthorizer
+
+listarMisReportes:
+  name: ${self:custom.prefix}-ListarMisReportes
+  handler: src/handlers/listar_mis_reportes.handler
+  events:
+    - httpApi:
+        method: GET
+        path: /reportes
+        authorizer:
+          name: jwtAuthorizer
+
+obtenerReporte:
+  name: ${self:custom.prefix}-ObtenerReporte
+  handler: src/handlers/obtener_reporte.handler
+  events:
+    - httpApi:
+        method: GET
+        path: /reportes/{report_id}
+        authorizer:
+          name: jwtAuthorizer
+
+cambiarEstadoReporte:
+  name: ${self:custom.prefix}-CambiarEstadoReporte
+  handler: src/handlers/cambiar_estado_reporte.handler
+  events:
+    - httpApi:
+        method: PATCH
+        path: /reportes/{report_id}/estado
+        authorizer:
+          name: jwtAuthorizer
+
+listarIncidentesZona:
+  name: ${self:custom.prefix}-ListarIncidentesZona
+  handler: src/handlers/listar_incidentes_zona.handler
+  events:
+    - httpApi:
+        method: GET
+        path: /incidentes
+        authorizer:
+          name: jwtAuthorizer
+    - httpApi:
+        method: GET
+        path: /incidentes/{incident_id}
+        authorizer:
+          name: jwtAuthorizer
+
+cambiarEstadoIncidente:
+  name: ${self:custom.prefix}-CambiarEstadoIncidente
+  handler: src/handlers/cambiar_estado_incidente.handler
+  events:
+    - httpApi:
+        method: PATCH
+        path: /incidentes/{incident_id}/estado
+        authorizer:
+          name: jwtAuthorizer
+
+obtenerTendencias:
+  name: ${self:custom.prefix}-ObtenerTendencias
+  handler: src/handlers/obtener_tendencias.handler
+  timeout: 20
+  events:
+    - httpApi:
+        method: GET
+        path: /tendencias
+        authorizer:
+          name: jwtAuthorizer
+
+obtenerSugerenciaIa:
+  name: ${self:custom.prefix}-ObtenerSugerenciaIA
+  handler: src/handlers/obtener_sugerencia_ia.handler
+  timeout: 5
+  events:
+    - httpApi:
+        method: GET
+        path: /incidentes/{incident_id}/sugerencia
+        authorizer:
+          name: jwtAuthorizer
+
+# --- Telemetría ---
+generadoraDeMetricasYLotes:
+  name: ${self:custom.prefix}-GeneradoraDeMetricasYLotes
+  handler: src/handlers/generadora_de_metricas_y_lotes.handler
+  timeout: 30
+  events:
+    - schedule:
+        rate: rate(1 minute)
+        enabled: ${self:custom.flags.generator}
+
+clasificadoraDeMetricas:
+  name: ${self:custom.prefix}-ClasificadoraDeMetricas
+  handler: src/handlers/clasificadora_de_metricas.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaMetricas.Arn
+        batchSize: 1
+        functionResponseType: ReportBatchItemFailures
+
+# --- Correlación y verificación ---
+correlacionadoraDeReportes:
+  name: ${self:custom.prefix}-CorrelacionadoraDeReportes
+  handler: src/handlers/correlacionadora_de_reportes.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaReportes.Arn
+        batchSize: 10
+        functionResponseType: ReportBatchItemFailures
+
+correlacionadoraDeAnomalias:
+  name: ${self:custom.prefix}-CorrelacionadoraDeAnomalias
+  handler: src/handlers/correlacionadora_de_anomalias.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaAnomalias.Arn
+        batchSize: 10
+        functionResponseType: ReportBatchItemFailures
+
+verificadoraDeEvidencias:
+  name: ${self:custom.prefix}-VerificadoraDeEvidencias
+  handler: src/handlers/verificadora_de_evidencias.handler
+  timeout: 30
+
+calculadoraDePrioridad:
+  name: ${self:custom.prefix}-CalculadoraDePrioridad
+  handler: src/handlers/calculadora_de_prioridad.handler
+  timeout: 30
+
+alertadoraDeOperaciones:
+  name: ${self:custom.prefix}-AlertadoraDeOperaciones
+  handler: src/handlers/alertadora_de_operaciones.handler
+  timeout: 30
+
+# --- Outbox y comunicación ---
+enrutadoraDeOutbox:
+  name: ${self:custom.prefix}-EnrutadoraDeOutbox
+  handler: src/handlers/enrutadora_de_outbox.handler
+  timeout: 30
+  events:
+    - stream:
+        type: dynamodb
+        arn: !GetAtt OutboxTable.StreamArn
+        batchSize: 10
+        startingPosition: LATEST
+        maximumRetryAttempts: 5
+        bisectBatchOnFunctionError: true
+        destinations:
+          onFailure:
+            arn: !GetAtt OutboxStreamDlq.Arn
+            type: sqs
+        filterPatterns:
+          - eventName: [INSERT]
+
+notificadoraDeClientes:
+  name: ${self:custom.prefix}-NotificadoraDeClientes
+  handler: src/handlers/notificadora_de_clientes.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaNotificaciones.Arn
+        batchSize: 10
+        functionResponseType: ReportBatchItemFailures
+
+# --- Otras nubes (activas con flags.external = true) ---
+publicadoraHaciaGcp:
+  name: ${self:custom.prefix}-PublicadoraHaciaGCP
+  handler: src/handlers/publicadora_hacia_gcp.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaGcp.Arn
+        batchSize: 10
+        enabled: ${self:custom.flags.external}
+        functionResponseType: ReportBatchItemFailures
+
+publicadoraHaciaAzure:
+  name: ${self:custom.prefix}-PublicadoraHaciaAzure
+  handler: src/handlers/publicadora_hacia_azure.handler
+  timeout: 30
+  events:
+    - sqs:
+        arn: !GetAtt ColaAzure.Arn
+        batchSize: 10
+        enabled: ${self:custom.flags.external}
+        functionResponseType: ReportBatchItemFailures

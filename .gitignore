@@ -1,48 +1,10 @@
-# Notas y archivos temporales de ChatGPT/Codex: nunca se publican.
-/chatgpt/
-
-# Secretos y configuración local
 .env
 .env.*
-!.env.example
 *.pem
-*.p12
-*.pfx
-local.settings.json
-secrets*.json
-!secrets.example.json
-
-# Infraestructura generada / estado local
-**/.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars
-*.auto.tfvars
-!*.tfvars.example
-**/.aws-sam/
-**/.serverless/
-
-# Dependencias y artefactos de desarrollo
-**/node_modules/
-**/.venv/
-**/__pycache__/
-*.py[cod]
-**/dist/
-**/build/
-**/coverage/
-*.log
-npm-debug.log*
-.cache/
-.parcel-cache/
-
-# Editor y sistema operativo
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea/
-.DS_Store
-Thumbs.db
-Desktop.ini
-*.swp
-*.swo
-*~
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.serverless/
+node_modules/
+.claude/settings.local.json
