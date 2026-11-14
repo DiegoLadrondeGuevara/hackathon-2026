@@ -1,6 +1,17 @@
 # Pendientes de implementación — Red TeleCorp
 
-Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS](aws/infra/serverless.yml), pero todo lo siguiente requiere implementación/despliegue/prueba; los diagramas y documentos están en la raíz. Marcar `[x]` únicamente después de guardar evidencia (archivo, enlace, captura o resultado de prueba) en esta lista o en [rubrica-hackathon.md](rubrica-hackathon.md). Arquitectura: [v2](arquitectura-solucion-v2.md). IA: [decisión v1](decision-ia.md).
+Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS v2](aws/infra/serverless.yml), pero los cambios de la [arquitectura v3 propuesta](arquitectura-solucion-v3.md) y todo el despliegue requieren implementación y pruebas. Marcar `[x]` únicamente después de guardar evidencia. IA: [decisión v1](decision-ia.md).
+
+## Revisión de arquitectura v3 — observaciones del equipo
+
+Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. La [propuesta v3](arquitectura-solucion-v3.md) explica las decisiones y conserva los nombres v2.
+
+- [ ] **OBS-01 · Detección técnica antes de 10 reportes:** conectar `telemetry.anomaly` → `OperacionesBus` → nueva `ColaAnomalias` + DLQ → nueva `CorrelacionadoraDeAnomalias` → `Incidents` → `VerificarIncidente`. Un episodio nuevo genera una sola sospecha técnica; `0` se atiende inmediatamente y las otras clasificaciones se verifican antes de confirmar afectación. **Hecho cuando:** una antena anómala inicia una ejecución de Step Functions sin reportes de usuarios y queda registrada como sospecha, no como falla confirmada.
+- [ ] **OBS-02 · Unificación de señales:** usar `NetworkCatalog` para cobertura antena-zona; consultar con lectura consistente los punteros activos en `Incidents` por zona/servicio y ventana temporal, enlazar reportes y evidencia técnica al mismo `incident_id` con actualización condicional. Los casos ambiguos quedan para revisión humana. **Hecho cuando:** anomalía → reportes y reportes → anomalía producen un solo incidente; el reporte 10 lo refuerza; un reporte ajeno no se vincula; reintentos no duplican incidente ni notificación.
+- [ ] **OBS-03 · Valor propio de Azure:** añadir una página pública independiente en Azure Static Web Apps sobre las Azure Functions y Table Storage ya propuestos, con `last_synced_at` y aviso de dato atrasado. **Hecho cuando:** la página de Azure muestra el último estado conocido aunque el portal AWS no responda; no se presenta como dato en tiempo real durante una caída del emisor.
+- [ ] **EDGE-01 · Cloudflare delante de Amplify:** si hay dominio, configurar DNS de verificación en modo DNS only, verificar TLS en Amplify y luego probar proxy Full (Strict) solo para el portal; dejar la validación ACM sin proxy. **Hecho cuando:** `portal.<dominio>` sirve el portal por HTTPS sin bucles ni caché de respuestas privadas. Cloudflare no sustituye API Gateway ni demuestra otra nube funcional.
+- [ ] **OBS-04 · Grafana Cloud transversal:** evaluar plan/cuotas, guardar token OTLP fuera de Git y enviar métricas de aplicación sin PII desde AWS, GCP y Azure; probar comprobaciones HTTPS públicas si la cuota lo permite. **Hecho cuando:** un panel distingue salud y retraso de cada nube. No usar el conector directo CloudWatch si exige crear un rol IAM prohibido por AWS Academy.
+- [ ] Alinear [serverless.yml](aws/infra/serverless.yml) con los nuevos recursos v3 `ColaAnomalias` y `CorrelacionadoraDeAnomalias` y ejecutar `serverless package` sin roles IAM nuevos. **Hecho cuando:** plantilla y diagrama v3 coinciden, sin dependencias circulares.
 
 ## AWS Academy — núcleo operativo
 
@@ -15,7 +26,7 @@ Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa
 
 ### Datos, API e ingesta
 
-- [ ] Crear tablas DynamoDB on-demand e índices descritos en [diseño de datos](arquitectura-solucion-v1.md#diseño-de-datos-consultas-primero-claves-después): `CustomerProfiles`, `NetworkCatalog`, `Reports`, `CorrelationMembers`, `Incidents`, `Telemetry`, `Outbox`. **Hecho cuando:** las consultas principales usan PK/SK o GSI, no `Scan`, y los TTL previstos están configurados.
+- [ ] Crear tablas DynamoDB on-demand e índices declarados en [serverless.yml](aws/infra/serverless.yml): `CustomerProfiles`, `NetworkCatalog`, `Reports`, `CorrelationMembers`, `Incidents`, `Telemetry`, `Outbox`. **Hecho cuando:** las consultas principales usan PK/SK o GSI, no `Scan`, los TTL previstos están configurados y los punteros activos v3 se consultan consistentemente.
 - [ ] Sembrar clientes ficticios, zonas de cinco tipos y mapa antena-zona. **Hecho cuando:** un reporte valida número/cliente y la verificación encuentra todas las antenas de su zona.
 - [ ] Implementar API de reportes y estados con transacciones, historial e idempotencia. **Hecho cuando:** un reporte aceptado persiste; un reintento con la misma clave no duplica el caso; los cinco estados quedan auditados.
 - [ ] Crear regla programada EventBridge, Lambda simuladora, bucket S3 de lotes, notificación S3→SQS y Lambda clasificadora. **Hecho cuando:** 30 antenas producen una lectura/minuto y `0`, `59`, `60`, `129`, `130` se clasifican correctamente; telemetría ausente queda separada de `0`.

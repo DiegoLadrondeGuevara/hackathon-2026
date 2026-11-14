@@ -130,7 +130,7 @@ La columna de evidencia es una **propuesta de demostración**, no un requisito a
 
 ## Decisiones que sí dependen de la siguiente etapa
 
-1. **Servicios concretos y diagrama multinube:** la arquitectura v1 usará AWS Academy, Google Cloud (GCP) y Azure; sus servicios, permisos y costos todavía deben comprobarse en las tres cuentas. Véase [arquitectura-solucion-v1.md](arquitectura-solucion-v1.md).
+1. **Servicios concretos y diagrama multinube:** la [arquitectura v3 propuesta](arquitectura-solucion-v3.md) usa AWS Academy, Google Cloud (GCP) y Azure; sus servicios, permisos y costos todavía deben comprobarse en las tres cuentas.
 2. **Presupuesto y cuotas reales:** el enunciado no da cifras. Verificar las de AWS Academy, GCP y Azure antes de fijar límites de despliegue o afirmar un costo.
 3. **Mensajería e IA disponibles:** validar si se puede enviar correo/SMS y ejecutar una función de IA real con los permisos presentes. Si no, ajustar el canal o la función sin alterar los estados y reglas ya definidos.
 4. **Objetivos de producción y regulación aplicable:** la simulación no proporciona acuerdos de servicio, población por zona ni políticas de conservación para una empresa real. Los objetivos S11 y la retención son supuestos de prototipo, sujetos a revisión antes de uso real.

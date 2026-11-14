@@ -1,0 +1,82 @@
+flowchart LR
+  U["Usuarios y operadores<br/>(navegador)"]
+  ANT["30 antenas simuladas<br/>(datos de prueba)"]
+
+  subgraph EDGE["Borde opcional"]
+    CF["portal.dominio<br/>(Cloudflare DNS + proxy)"]
+  end
+
+  subgraph AWS["AWS Academy - operacion y fuente de verdad"]
+    AMP["red-telecorp-portal<br/>(Amplify Hosting)"]
+    API["red-telecorp-dev-api-http<br/>(API Gateway HTTP API)"]
+    LOGIN["red-telecorp-dev-AutenticarUsuario<br/>(AWS Lambda, emite JWT)"]
+    AUTHZ["red-telecorp-dev-AutorizarJWT<br/>(AWS Lambda Authorizer)"]
+    WEB["CrearReporte, ListarMisReportes, ObtenerReporte,<br/>ListarIncidentesZona, CambiarEstadoReporte,<br/>CambiarEstadoIncidente, ObtenerTendencias,<br/>ObtenerSugerenciaIA<br/>(8 AWS Lambda, una por ruta)"]
+    CUST["CustomerProfiles<br/>(DynamoDB tabla)"]
+    REPORTS["Reports + CorrelationMembers<br/>(DynamoDB, 2 tablas)"]
+    CAT["NetworkCatalog<br/>(DynamoDB tabla)"]
+    TEL["Telemetry<br/>(DynamoDB tabla)"]
+    INC["Incidents<br/>(DynamoDB tabla, caso compartido)"]
+    OUT["Outbox + Streams NEW_IMAGE<br/>(DynamoDB tabla + captura de cambios)"]
+    CRON["generar-metricas-cada-minuto<br/>(EventBridge regla)"]
+    GEN["GeneradoraDeMetricasYLotes<br/>(AWS Lambda)"]
+    RAW["red-telecorp-dev-metricas-xxxxxxxxxxxx<br/>(S3 bucket, ID de cuenta pendiente)"]
+    MQ["ColaMetricas + DLQ<br/>(SQS)"]
+    CLASS["ClasificadoraDeMetricas<br/>(AWS Lambda)"]
+    ROUTER["EnrutadoraDeOutbox<br/>(AWS Lambda)"]
+    BUS["red-telecorp-dev-operaciones<br/>(EventBridge bus)"]
+    RQ["ColaReportes + DLQ<br/>(SQS)"]
+    RC["CorrelacionadoraDeReportes<br/>(AWS Lambda, umbral 10/24 h)"]
+    AQ["ColaAnomalias + DLQ<br/>(SQS, nuevo v3)"]
+    AC["CorrelacionadoraDeAnomalias<br/>(AWS Lambda, nueva v3)"]
+    SFN["VerificarIncidente<br/>(Step Functions Standard)"]
+    NOT["AlertadoraDeOperaciones<br/>(AWS Lambda)"]
+    TOPIC["alertas-operaciones<br/>(SNS topic)"]
+    GQ["ColaGCP + DLQ<br/>(SQS)"]
+    GP["PublicadoraHaciaGCP<br/>(AWS Lambda)"]
+    ZQ["ColaAzure + DLQ<br/>(SQS)"]
+    ZP["PublicadoraHaciaAzure<br/>(AWS Lambda)"]
+    SSM["Claves de firma<br/>(SSM SecureString)"]
+  end
+
+  subgraph GCP["GCP - historia e IA"]
+    RUN["red-telecorp-analisis<br/>(Cloud Run function)"]
+    BQ["incident_events<br/>(BigQuery tabla)"]
+    GEM["Gemini Developer API<br/>(IA, sugerencia revisable)"]
+  end
+
+  subgraph AZ["Azure - estado publico independiente"]
+    AZAPI["red-telecorp-estado-api<br/>(Azure Functions)"]
+    AZTABLE["EstadoZonas<br/>(Azure Table Storage tabla)"]
+    AZWEB["red-telecorp-estado-publico<br/>(Azure Static Web Apps, nuevo v3)"]
+  end
+
+  GRAF["red-telecorp-observabilidad<br/>(Grafana Cloud, opcional)"]
+
+  U --> CF --> AMP --> API
+  API -->|login publico| LOGIN --> CUST
+  LOGIN -->|JWT 15 min| U
+  API -->|rutas protegidas| AUTHZ --> WEB --> REPORTS
+  WEB --> INC
+  SSM --> LOGIN
+  SSM --> AUTHZ
+  ANT -.->|topologia simulada| GEN
+  CRON --> GEN --> RAW --> MQ --> CLASS --> TEL
+  CLASS -->|episodio nuevo| OUT
+  REPORTS -->|transaccion| OUT --> ROUTER --> BUS
+  BUS -->|report.created| RQ --> RC
+  BUS -->|telemetry.anomaly| AQ --> AC
+  AC --> CAT
+  AC -->|enlaza o crea sospecha tecnica| INC
+  RC -->|enlaza o crea, sin duplicar| INC
+  INC -->|nueva evidencia| SFN --> NOT --> TOPIC
+  INC -->|cambio de estado| OUT
+  BUS --> GQ --> GP -->|HTTPS sin PII| RUN
+  RUN --> BQ
+  RUN --> GEM
+  GEM -->|hipotesis| RUN -->|sugerencia| GP --> INC
+  BUS --> ZQ --> ZP -->|HTTPS sin PII| AZAPI --> AZTABLE
+  U -->|consulta separada| AZWEB --> AZAPI
+  AWS -.->|metricas OTLP sin PII| GRAF
+  GCP -.->|metricas OTLP sin PII| GRAF
+  AZ -.->|metricas OTLP sin PII| GRAF

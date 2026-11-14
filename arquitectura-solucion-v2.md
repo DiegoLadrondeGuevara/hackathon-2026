@@ -1,6 +1,6 @@
 # Arquitectura v2: nombres de AWS y flujo de IA
 
-Esta versión toma los nombres de [aws/infra/serverless.yml](aws/infra/serverless.yml). Es un **diseño declarativo**: no hay handlers ni despliegue aún. GCP y Azure conservan las funciones de la [arquitectura v1](arquitectura-solucion-v1.md). Para explicar el sistema se recomienda el [panorama editable](arquitectura-v2-panorama.mmd), con [PNG](arquitectura-v2-panorama.png) y [SVG](arquitectura-v2-panorama.svg). Para editar cada recurso AWS está el [diagrama técnico](arquitectura-solucion-v2.mmd), con [PNG](arquitectura-solucion-v2.png) y [SVG](arquitectura-solucion-v2.svg).
+Esta versión toma los nombres de [aws/infra/serverless.yml](aws/infra/serverless.yml). Es un **diseño declarativo**: no hay handlers ni despliegue aún. GCP y Azure cumplen los papeles resumidos en la [propuesta v3](arquitectura-solucion-v3.md). Para explicar el sistema se recomienda el [panorama editable](arquitectura-v2-panorama.mmd), con [PNG](arquitectura-v2-panorama.png) y [SVG](arquitectura-v2-panorama.svg). Para editar cada recurso AWS está el [diagrama técnico](arquitectura-solucion-v2.mmd), con [PNG](arquitectura-solucion-v2.png) y [SVG](arquitectura-solucion-v2.svg).
 
 ```mermaid
 flowchart LR
