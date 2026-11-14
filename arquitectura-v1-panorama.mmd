@@ -1,0 +1,30 @@
+flowchart LR
+    U["Navegador<br/>usuario u operador"]
+    S["Simulador de antenas"]
+
+    subgraph AWS["AWS Academy - operación principal"]
+      F["Amplify<br/>portal"]
+      API["API Gateway + Lambda Auth<br/>JWT y reportes"]
+      DB["DynamoDB + S3<br/>fuente de verdad"]
+      EV["EventBridge + SQS/DLQ<br/>eventos y reintentos"]
+      WF["Step Functions<br/>verificación"]
+    end
+
+    subgraph GCP["Google Cloud - análisis"]
+      CRF["Cloud Run function"]
+      BQ["BigQuery<br/>tendencias"]
+      AI["Gemini Developer API<br/>nivel gratuito"]
+    end
+
+    subgraph AZ["Azure - estado público"]
+      AF["Azure Functions"]
+      TB["Table Storage<br/>estado por zona"]
+    end
+
+    U -->|HTTPS| F --> API --> DB
+    S -->|lecturas| DB
+    DB --> EV --> WF --> DB
+    EV -->|datos depurados / HTTPS| CRF --> BQ
+    CRF --> AI
+    EV -->|estado sin PII / HTTPS| AF --> TB
+    U -->|estado de su zona| AF
