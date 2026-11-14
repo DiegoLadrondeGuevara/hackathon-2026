@@ -1,6 +1,6 @@
 # Pendientes de implementación — Red TeleCorp
 
-Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS v2](aws/infra/serverless.yml), pero los cambios de la [arquitectura v4 propuesta](arquitectura-solucion-v4.md) y todo el despliegue requieren implementación y pruebas. Marcar `[x]` únicamente después de guardar evidencia. IA: [decisión v1](decision-ia.md).
+Actualizado: 14 de noviembre de 2026. **Estado:** el [diagrama del equipo](arquitectura-solucion-propuesta-equipo.png) es la propuesta visual principal; la [arquitectura v4 de ChatGPT](arquitectura-solucion-v4.md) es una versión beta de referencia. Hay una [plantilla declarativa AWS v2](aws/infra/serverless.yml), pero el despliegue y los cambios previstos requieren implementación y pruebas. Marcar `[x]` únicamente después de guardar evidencia. IA: [decisión v1](decision-ia.md).
 
 ## Revisión de arquitectura v4 — seis observaciones funcionales
 
@@ -15,7 +15,7 @@ Estas casillas describen implementación y prueba, **no elementos ya resueltos p
 
 ## Observaciones del equipo incorporadas a la arquitectura v4
 
-Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. La [propuesta v4](arquitectura-solucion-v4.md) conserva las decisiones y los nombres de recursos.
+Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. El [análisis beta v4](arquitectura-solucion-v4.md) conserva las decisiones y los nombres de recursos para contrastarlos con el diagrama del equipo.
 
 - [ ] **OBS-01 · Detección técnica antes de 10 reportes:** conectar `telemetry.anomaly` → `OperacionesBus` → nueva `ColaAnomalias` + DLQ → nueva `CorrelacionadoraDeAnomalias` → `Incidents` → `VerificarIncidente`. Un episodio nuevo genera una sola sospecha técnica; `0` se atiende inmediatamente y las otras clasificaciones se verifican antes de confirmar afectación. **Hecho cuando:** una antena anómala inicia una ejecución de Step Functions sin reportes de usuarios y queda registrada como sospecha, no como falla confirmada.
 - [ ] **OBS-02 · Unificación de señales:** usar `NetworkCatalog` para cobertura antena-zona; consultar con lectura consistente los punteros activos en `Incidents` por zona/servicio y ventana temporal, enlazar reportes y evidencia técnica al mismo `incident_id` con actualización condicional. Los casos ambiguos quedan para revisión humana. **Hecho cuando:** anomalía → reportes y reportes → anomalía producen un solo incidente; el reporte 10 lo refuerza; un reporte ajeno no se vincula; reintentos no duplican incidente ni notificación.

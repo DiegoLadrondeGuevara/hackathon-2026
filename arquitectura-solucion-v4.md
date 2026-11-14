@@ -1,6 +1,6 @@
-# Arquitectura v4 propuesta — episodio, incidente y comunicación
+# Arquitectura v4 beta — episodio, incidente y comunicación
 
-**Estado:** propuesta visual y funcional para revisión. Ningún servicio nuevo de v4 está desplegado. Se conservan los nombres v2/v3; `ColaAnomalias` y `CorrelacionadoraDeAnomalias` siguen pendientes de declarar en [`serverless.yml`](aws/infra/serverless.yml). La plantilla ya nombra `NotificadoraDeClientes`, `ColaNotificaciones`, `VerificadoraDeEvidencias` y `CalculadoraDePrioridad`, pero todavía hay que implementar sus funciones y eventos.
+**Estado:** versión beta elaborada por ChatGPT para análisis técnico. El [diagrama propuesto por el equipo](arquitectura-solucion-propuesta-equipo.png) es la referencia visual principal. Ningún servicio nuevo de v4 está desplegado. Se conservan los nombres v2/v3; `ColaAnomalias` y `CorrelacionadoraDeAnomalias` siguen pendientes de declarar en [`serverless.yml`](aws/infra/serverless.yml). La plantilla ya nombra `NotificadoraDeClientes`, `ColaNotificaciones`, `VerificadoraDeEvidencias` y `CalculadoraDePrioridad`, pero todavía hay que implementar sus funciones y eventos.
 
 **Abrir:** [HTML interactivo](arquitectura-solucion-v4.html) · [panorama](arquitectura-solucion-v4.mmd) · [incidente](flujo-incidente-v4.mmd) · [comunicación](flujo-comunicacion-v4.mmd). Los tres Mermaid tienen SVG exportable y `Incidents` está resaltada como **tabla DynamoDB**.
 

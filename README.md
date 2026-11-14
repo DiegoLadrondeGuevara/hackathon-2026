@@ -1,6 +1,6 @@
 # Red TeleCorp — documentación de la solución serverless multinube
 
-**Hackathon Cloud 2026 · Grupo 12, Escuadrón S3.** Esta es la guía de consulta del diseño v4, la única arquitectura vigente. Los ZIP antiguos se conservan como archivos históricos y no definen la solución actual. Existe una plantilla declarativa de AWS; los handlers, el frontend y las integraciones de GCP y Azure todavía no están desplegados. «Diseñado» no significa «probado» ni puntos obtenidos en la rúbrica.
+**Hackathon Cloud 2026 · Grupo 12, Escuadrón S3.** Esta guía toma como arquitectura propuesta el diagrama del equipo. El diagrama v4 elaborado por ChatGPT queda como **versión beta de referencia**. Los ZIP antiguos se conservan como archivos históricos y no definen la solución actual. Existe una plantilla declarativa de AWS; los handlers, el frontend y las integraciones de GCP y Azure todavía no están desplegados. «Diseñado» no significa «probado» ni puntos obtenidos en la rúbrica.
 
 ## Índice
 
@@ -49,13 +49,13 @@ El objetivo del prototipo es **detectar, correlacionar, verificar, priorizar, se
 
 **AWS Academy** es la fuente de verdad para clientes ficticios, reportes, lecturas, episodios, incidentes, prioridad y comunicación. **GCP** analiza eventos depurados y produce sugerencias de IA revisables. **Azure** publica el último estado de zona recibido. **Cloudflare** puede servir de borde al portal estático y **Grafana Cloud** permite observar la salud de las tres nubes. Un reporte individual, una anomalía técnica y un incidente colectivo son entidades distintas; pueden reunirse bajo el mismo `incident_id` sin confirmar automáticamente una falla.
 
-**Diagrama provisional de arquitectura v4:**
+**Diagrama de arquitectura propuesto por el equipo:** [abrir imagen a tamaño completo](arquitectura-solucion-propuesta-equipo.png).
 
-![Arquitectura general de Red TeleCorp v4](arquitectura-solucion-v4.svg)
+![Diagrama de arquitectura propuesto por el equipo Red TeleCorp](arquitectura-solucion-propuesta-equipo.png)
 
-**Diagrama del equipo en Eraser:** [abrir espacio de trabajo](https://app.eraser.io/workspace/GFexrYcESXJiLHryglNx?origin=share). Sustituiremos aquí el diagrama provisional por la versión final del equipo. Este README incluye **solo el diagrama general**; los flujos detallados se explican en texto.
+**Fuente editable del equipo:** [espacio de trabajo en Eraser](https://app.eraser.io/workspace/GFexrYcESXJiLHryglNx?origin=share). **Versión beta elaborada por ChatGPT:** [diagrama SVG](arquitectura-solucion-v4.svg) y [vista HTML](arquitectura-solucion-v4.html). El README muestra solo el diagrama propuesto; los flujos se explican en texto.
 
-**Conexiones por completar en el diagrama final:** la consulta `ObtenerTendencias ↔ red-telecorp-analisis` descrita en la sección 9; la detección de tres lecturas ausentes; y el canal de clientes que realmente permita AWS Academy. El diagrama provisional no demuestra por sí solo que esos tramos estén implementados.
+**Conexiones por validar al implementar:** la consulta `ObtenerTendencias ↔ red-telecorp-analisis` descrita en la sección 9; la detección de tres lecturas ausentes; y el canal de clientes que realmente permita AWS Academy. El dibujo representa una propuesta, no una prueba de funcionamiento.
 
 ## 4. Actores, entidades y reglas
 
@@ -227,4 +227,4 @@ La evaluación de D01–D13 está **antes** de esta sección para comprobar que 
 4. **Opcionales:** dominio/proxy Cloudflare y métricas Grafana, si hay acceso, cuota y tiempo, sin desplazar los flujos obligatorios.
 5. **Demostración:** valores de borde `0/59/60/129/130`; 9 frente a 10 clientes únicos; recurrencia y recuperación; prioridad crítica; mensaje real; estados/historial; tendencias; IA; caída de integración; carga de 1000 reportes. Guardar evidencia en [PENDIENTES.md](PENDIENTES.md) y [rubrica-hackathon.md](rubrica-hackathon.md).
 
-**Fuentes de esta guía:** [enunciado original](hackathonCloudEnunciado.txt), [puntos de dolor y reglas S01–S12](puntos-dolor-cliente.md), [arquitectura v4 propuesta](arquitectura-solucion-v4.md), [plantilla AWS](aws/infra/serverless.yml) y [checklist](PENDIENTES.md). Si una implementación cambia un contrato o una conexión, actualizar esta guía y el diagrama del equipo.
+**Fuentes de esta guía:** [enunciado original](hackathonCloudEnunciado.txt), [puntos de dolor y reglas S01–S12](puntos-dolor-cliente.md), [diagrama propuesto por el equipo](arquitectura-solucion-propuesta-equipo.png), [análisis beta v4](arquitectura-solucion-v4.md), [plantilla AWS](aws/infra/serverless.yml) y [checklist](PENDIENTES.md). Si una implementación cambia un contrato o una conexión, actualizar esta guía y el diagrama del equipo.
