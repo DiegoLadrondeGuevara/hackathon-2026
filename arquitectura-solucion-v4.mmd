@@ -1,0 +1,102 @@
+flowchart LR
+  U["Usuarios y operadores<br/>(navegador)"]
+  ANT["30 antenas simuladas<br/>(datos de prueba)"]
+  CF["portal.dominio<br/>(Cloudflare DNS + proxy opcional)"]
+  GRAF["red-telecorp-observabilidad<br/>(Grafana Cloud opcional)"]
+
+  subgraph AWS["AWS Academy · operación y fuente de verdad"]
+    AMP["red-telecorp-portal<br/>(Amplify Hosting)"]
+    API["red-telecorp-dev-api-http<br/>(API Gateway HTTP API)"]
+    LOGIN["AutenticarUsuario<br/>(AWS Lambda · JWT 15 min)"]
+    AUTH["AutorizarJWT<br/>(AWS Lambda Authorizer)"]
+    WEB["CrearReporte · ListarMisReportes · ObtenerReporte<br/>ListarIncidentesZona · CambiarEstadoReporte<br/>CambiarEstadoIncidente · ObtenerTendencias · ObtenerSugerenciaIA<br/>(8 AWS Lambda · una por ruta)"]
+    CRON["generar-metricas-cada-minuto<br/>(EventBridge regla)"]
+    GEN["GeneradoraDeMetricasYLotes<br/>(AWS Lambda)"]
+    RAW["red-telecorp-dev-metricas-xxxxxxxxxxxx<br/>(S3 bucket)"]
+    MQ["ColaMetricas + DLQ<br/>(SQS)"]
+    CLASS["ClasificadoraDeMetricas<br/>(AWS Lambda · episodio/recuperación)"]
+    TEL["Telemetry<br/>(DynamoDB tabla · estado anterior + episodios)"]
+    REP["Reports<br/>(DynamoDB tabla · META + HIST)"]
+    MEM["CorrelationMembers<br/>(DynamoDB tabla · clientes únicos)"]
+    CAT["NetworkCatalog<br/>(DynamoDB tabla · cobertura + criticidad)"]
+    CUST["CustomerProfiles<br/>(DynamoDB tabla · contacto/preferencias)"]
+    INC["Incidents<br/>(DynamoDB tabla · META + HIST + LINK + NOTIFY)"]
+    OUT["Outbox + DynamoDB Streams<br/>(DynamoDB tabla + captura de cambios)"]
+    ROUTER["EnrutadoraDeOutbox<br/>(AWS Lambda)"]
+    BUS["red-telecorp-dev-operaciones<br/>(EventBridge bus · OperacionesBus)"]
+    RQ["ColaReportes + DLQ<br/>(SQS)"]
+    RC["CorrelacionadoraDeReportes<br/>(AWS Lambda · 10 usuarios/24 h)"]
+    AQ["ColaAnomalias + DLQ<br/>(SQS · propuesta v3)"]
+    AC["CorrelacionadoraDeAnomalias<br/>(AWS Lambda · propuesta v3)"]
+    SFN["VerificarIncidente<br/>(Step Functions Standard)"]
+    EVID["VerificadoraDeEvidencias<br/>(AWS Lambda)"]
+    PRIOR["CalculadoraDePrioridad<br/>(AWS Lambda · P1/P2/P3)"]
+    OPS["AlertadoraDeOperaciones<br/>(AWS Lambda)"]
+    SNSOPS["alertas-operaciones<br/>(SNS topic · equipo interno)"]
+    NQ["ColaNotificaciones + DLQ<br/>(SQS)"]
+    NCLI["NotificadoraDeClientes<br/>(AWS Lambda · usuarios vinculados)"]
+    CHAN["MensajeriaClientesSMS<br/>(Amazon SNS SMS · API Publish; pendiente de permisos)"]
+    GQ["ColaGCP + DLQ<br/>(SQS)"]
+    GP["PublicadoraHaciaGCP<br/>(AWS Lambda)"]
+    ZQ["ColaAzure + DLQ<br/>(SQS)"]
+    ZP["PublicadoraHaciaAzure<br/>(AWS Lambda)"]
+    SSM["Claves de firma<br/>(SSM SecureString)"]
+  end
+
+  subgraph GCP["GCP · historia e IA auxiliar"]
+    RUN["red-telecorp-analisis<br/>(Cloud Run function)"]
+    BQ["incident_events<br/>(BigQuery tabla)"]
+    GEM["Gemini Developer API<br/>(API de IA · hipótesis revisable)"]
+  end
+
+  subgraph AZ["Azure · estado público independiente"]
+    AZAPI["red-telecorp-estado-api<br/>(Azure Functions)"]
+    AZTABLE["EstadoZonas<br/>(Azure Table Storage tabla)"]
+    AZWEB["red-telecorp-estado-publico<br/>(Azure Static Web Apps)"]
+  end
+
+  U --> CF --> AMP --> API
+  API -->|login| LOGIN --> CUST
+  API -->|rutas protegidas| AUTH --> WEB
+  SSM --> LOGIN
+  SSM --> AUTH
+  WEB --> REP
+  WEB --> INC
+  WEB -->|estado/historial| OUT
+  ANT -.-> GEN
+  CRON --> GEN --> RAW --> MQ --> CLASS
+  TEL <-->|estado anterior, rachas, episodios| CLASS
+  CLASS -->|anomalía nueva, recuperación, recurrencia| OUT
+  REP -->|reporte aceptado| MEM
+  REP -->|transacción| OUT --> ROUTER --> BUS
+  BUS -->|report.created| RQ --> RC
+  MEM -->|10 clientes distintos sin exigir antena| RC
+  BUS -->|telemetry.anomaly / recovered / recurrent| AQ --> AC
+  CAT -->|cobertura para asociación| AC
+  RC -->|crear/enlazar caso| INC
+  AC -->|crear/enlazar/actualizar caso| INC
+  INC -->|nueva evidencia o revisión| SFN --> EVID --> PRIOR --> OPS --> SNSOPS
+  CAT --> EVID
+  TEL --> EVID
+  MEM --> PRIOR
+  CAT --> PRIOR
+  INC --> PRIOR
+  INC -->|hito o reporte enlazado| OUT
+  BUS -->|incident.updated / report.linked| NQ --> NCLI
+  INC -->|LINK + NOTIFY| NCLI
+  REP -->|reporte + HIST| NCLI
+  CUST -->|canal y consentimiento| NCLI
+  NCLI -->|intento/resultado| INC
+  NCLI --> CHAN
+  BUS --> GQ --> GP -->|HTTPS sin PII| RUN
+  RUN --> BQ
+  RUN --> GEM
+  GEM -->|sugerencia| RUN --> GP --> INC
+  BUS --> ZQ --> ZP -->|HTTPS sin PII| AZAPI --> AZTABLE
+  U -->|consulta separada| AZWEB --> AZAPI
+  AWS -.->|OTLP sin PII| GRAF
+  GCP -.->|OTLP sin PII| GRAF
+  AZ -.->|OTLP sin PII| GRAF
+
+  classDef central fill:#fff1c9,stroke:#aa6e00,stroke-width:4px,color:#1e293b;
+  class INC central;

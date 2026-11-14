@@ -1,0 +1,55 @@
+flowchart TB
+  M["Lectura de antena<br/>(dato simulado)"]
+  CLASS["ClasificadoraDeMetricas<br/>(AWS Lambda)"]
+  TEL["Telemetry<br/>(DynamoDB tabla · LAST + EPISODE)"]
+  R["CrearReporte<br/>(AWS Lambda · API de usuarios)"]
+  REP["Reports<br/>(DynamoDB tabla · META + HIST)"]
+  MEM["CorrelationMembers<br/>(DynamoDB tabla · usuario único/zona/servicio)"]
+  BUS["OperacionesBus<br/>(EventBridge bus)"]
+  AQ["ColaAnomalias + DLQ<br/>(SQS)"]
+  AC["CorrelacionadoraDeAnomalias<br/>(AWS Lambda)"]
+  RQ["ColaReportes + DLQ<br/>(SQS)"]
+  RC["CorrelacionadoraDeReportes<br/>(AWS Lambda)"]
+  CAT["NetworkCatalog<br/>(DynamoDB tabla · cobertura/criticidad)"]
+  THRESH{"10 clientes distintos<br/>en misma zona/servicio<br/>en menos de 24 h<br/>(regla de negocio)"}
+  ASSOC{"¿Candidato técnico<br/>único compatible?<br/>(regla opcional de asociación)"}
+  REVIEW["Revisión del operador<br/>(acción humana · casos ambiguos)"]
+  INC["Incidents<br/>(DynamoDB tabla · META + HIST + LINK + NOTIFY)"]
+  SFN["VerificarIncidente<br/>(Step Functions Standard)"]
+  EVID["VerificadoraDeEvidencias<br/>(AWS Lambda)"]
+  PRIOR["CalculadoraDePrioridad<br/>(AWS Lambda · P1/P2/P3)"]
+  OPS["AlertadoraDeOperaciones<br/>(AWS Lambda)"]
+  SNS["alertas-operaciones<br/>(SNS topic interno)"]
+  HUMAN["CambiarEstadoIncidente<br/>(AWS Lambda · decisión operador)"]
+  REPORTSTATE["CambiarEstadoReporte<br/>(AWS Lambda · cinco estados)"]
+
+  M --> CLASS
+  TEL <-->|lectura previa + contador de normales| CLASS
+  CLASS -->|primera anomalía abre episodio| TEL
+  CLASS -->|cinco normales cierran episodio; 3 en 7 días = recurrencia| TEL
+  CLASS -->|telemetry.anomaly / recovered / recurrent| BUS
+  BUS --> AQ --> AC
+  CAT -->|antena cubre zona| AC
+  AC -->|sospecha técnica sin esperar reportes| INC
+  R --> REP --> MEM
+  REP -->|report.created| BUS --> RQ --> RC --> THRESH
+  MEM -->|conteo único| THRESH
+  THRESH -->|sí: crear/enlazar incidente aunque no haya anomalía| INC
+  RC --> ASSOC
+  AC --> ASSOC
+  CAT --> ASSOC
+  ASSOC -->|un candidato: mismo incident_id| INC
+  ASSOC -->|varios: no unir automáticamente| REVIEW
+  INC -->|caso nuevo, evidencia, 10/100 usuarios o recuperación| SFN
+  SFN --> EVID --> PRIOR --> OPS --> SNS
+  TEL --> EVID
+  REP --> EVID
+  MEM --> PRIOR
+  CAT --> PRIOR
+  INC --> PRIOR
+  SFN -->|recomendación; no cierre automático| HUMAN -->|META actual + HIST anexado| INC
+  REPORTSTATE -->|META actual + HIST anexado| REP
+  CLASS -->|recuperación es evidencia, no cierra reportes| HUMAN
+
+  classDef central fill:#fff1c9,stroke:#aa6e00,stroke-width:4px,color:#1e293b;
+  class INC central;

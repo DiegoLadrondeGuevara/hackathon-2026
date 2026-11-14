@@ -1,6 +1,17 @@
 # Pendientes de implementación — Red TeleCorp
 
-Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS v2](aws/infra/serverless.yml), pero los cambios de la [arquitectura v3 propuesta](arquitectura-solucion-v3.md) y todo el despliegue requieren implementación y pruebas. Marcar `[x]` únicamente después de guardar evidencia. IA: [decisión v1](decision-ia.md).
+Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS v2](aws/infra/serverless.yml), pero los cambios de la [arquitectura v4 propuesta](arquitectura-solucion-v4.md) y todo el despliegue requieren implementación y pruebas. Marcar `[x]` únicamente después de guardar evidencia. IA: [decisión v1](decision-ia.md).
+
+## Revisión de arquitectura v4 — seis observaciones funcionales
+
+Estas casillas describen implementación y prueba, **no elementos ya resueltos por el dibujo**. La [nota v4](arquitectura-solucion-v4.md) distingue reglas previas de omisiones visuales.
+
+- [ ] **OBS-05 · Comunicación a afectados:** implementar `incident.updated` por hito y `report.linked` para usuarios que llegan tarde → `ColaNotificaciones` → `NotificadoraDeClientes`; leer `Incidents LINK`, `Reports` y `CustomerProfiles`, crear intención única `NOTIFY#cliente#hito`, respetar consentimiento y guardar canal, hora, intento y resultado. **Hecho cuando:** solo los usuarios relacionados reciben el hito correcto y un reintento no crea otra intención; una prueba muestra recepción real por un canal permitido.
+- [ ] **OBS-06 · Estado de episodios:** persistir en `Telemetry` estado anterior, episodio abierto, contador de normales y episodios cerrados; publicar `telemetry.anomaly`, `telemetry.recovered` y `telemetry.recurrent` por Outbox. **Hecho cuando:** lecturas anómalas consecutivas forman un episodio, cinco normales lo cierran, datos ausentes no lo cierran y tres episodios en siete días activan revisión.
+- [ ] **OBS-07 · Prioridad dinámica:** completar `VerificarIncidente → VerificadoraDeEvidencias → CalculadoraDePrioridad → AlertadoraDeOperaciones`; leer criticidad de `NetworkCatalog`, usuarios únicos de `CorrelationMembers`, severidad de `Telemetry` y estado de `Incidents`. Recalcular en nuevas evidencias, umbrales 10/100, recuperación y cambio del operador; usar `incident_id + revision` para idempotencia. **Hecho cuando:** casos de P1/P2/P3 muestran regla aplicada y una revisión no duplica alertas.
+- [ ] **OBS-08 · Historial de estados:** `CambiarEstadoReporte` y `CambiarEstadoIncidente` actualizan `META` y anexan `HIST` con estado anterior/nuevo, actor, hora y motivo. **Hecho cuando:** se reconstruyen los cinco estados de cada reporte y el ciclo independiente del incidente, incluida una devolución a revisión.
+- [ ] **OBS-09 · Colectivo sin antena:** contar diez clientes distintos de zona/servicio en menos de 24 h y crear sospecha aun con telemetría normal o ausente; buscar antena/caso técnico después. **Hecho cuando:** el décimo crea un solo incidente sin anomalía y el undécimo comparte `incident_id`; una antena compatible posterior se enlaza sin duplicación.
+- [ ] **OBS-10 · Recuperación técnica:** cinco lecturas normales publican `telemetry.recovered`; la evidencia actualiza el caso y recalcula prioridad. El operador decide restablecimiento; los reportes siguen su propio ciclo. **Hecho cuando:** recuperación sola no marca `Incidents` como restablecido ni cierra `Reports`, y el hito de restablecimiento notifica solo tras decisión operativa.
 
 ## Revisión de arquitectura v3 — observaciones del equipo
 

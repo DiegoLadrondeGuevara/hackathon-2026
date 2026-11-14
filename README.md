@@ -4,7 +4,7 @@ Proyecto del grupo 12, Escuadrón S3. Buscamos detectar y gestionar incidentes d
 
 ## Estado actual
 
-**Arquitectura v3 propuesta sobre la plantilla declarativa AWS v2. Aplicación todavía no desplegada.** Las decisiones del prototipo no equivalen a puntos otorgados por el jurado. [PENDIENTES.md](PENDIENTES.md) es el tablero de trabajo; una casilla se completa solo con implementación y evidencia.
+**Arquitectura v4 propuesta sobre la plantilla declarativa AWS v2. Aplicación todavía no desplegada.** La v4 añade en el dibujo el ciclo de episodios, la prioridad, el historial y la comunicación a clientes. Las decisiones del prototipo no equivalen a puntos otorgados por el jurado. [PENDIENTES.md](PENDIENTES.md) es el tablero de trabajo; una casilla se completa solo con implementación y evidencia.
 
 ## Archivos de referencia (raíz)
 
@@ -14,6 +14,11 @@ Proyecto del grupo 12, Escuadrón S3. Buscamos detectar y gestionar incidentes d
 | [puntos-dolor-cliente.md](puntos-dolor-cliente.md) | Contexto, 13 dolores y definiciones S01–S12. |
 | [rubrica-hackathon.md](rubrica-hackathon.md) | Criterios, condiciones de entrega y evidencia pendiente. |
 | [arquitectura-solucion-v2.md](arquitectura-solucion-v2.md) | Nombres v2 de AWS, diagrama actualizado, JWT propio y flujo de IA. |
+| [arquitectura-solucion-v4.html](arquitectura-solucion-v4.html) | Vista interactiva vigente, con tres diagramas y tipos nativos de los recursos. Funciona sin conexión. |
+| [arquitectura-solucion-v4.md](arquitectura-solucion-v4.md) | Evaluación crítica de los seis comentarios nuevos y reglas de episodios, prioridad, historial y notificaciones. |
+| [arquitectura-solucion-v4.mmd](arquitectura-solucion-v4.mmd) / [SVG](arquitectura-solucion-v4.svg) | Panorama multinube v4 editable y exportado. |
+| [flujo-incidente-v4.mmd](flujo-incidente-v4.mmd) / [SVG](flujo-incidente-v4.svg) | Umbral colectivo independiente, asociación técnica, recuperación y prioridad. |
+| [flujo-comunicacion-v4.mmd](flujo-comunicacion-v4.mmd) / [SVG](flujo-comunicacion-v4.svg) | Flujo de comunicación a clientes y separación de alertas internas. |
 | [arquitectura-solucion-v3.html](arquitectura-solucion-v3.html) | Vista interactiva y legible de la propuesta v3; funciona sin conexión. |
 | [arquitectura-solucion-v3.md](arquitectura-solucion-v3.md) | Análisis crítico de las observaciones, correlación de señales y rol de cada plataforma. |
 | [arquitectura-solucion-v3.mmd](arquitectura-solucion-v3.mmd) / [SVG](arquitectura-solucion-v3.svg) | Diagrama multinube editable y exportado de la propuesta v3. |
@@ -41,4 +46,4 @@ Los `.mmd` de la raíz son los diagramas editables en Mermaid. Los PNG/SVG son v
 
 ## Próxima acción técnica
 
-Revisar la [arquitectura v3](arquitectura-solucion-v3.html) con el equipo y, si se adopta, alinear el `serverless.yml` con `ColaAnomalias` y `CorrelacionadoraDeAnomalias`. Después comprobar `LabRole`, Step Functions y Streams en AWS Academy, y los accesos de GCP y Azure. La IA propuesta usa Gemini Developer API en GCP para sugerencias revisables; Bedrock queda condicionado a una prueba de acceso y costo. El [checklist](PENDIENTES.md) establece qué se considera terminado en cada proveedor.
+Revisar la [arquitectura v4](arquitectura-solucion-v4.html) con el equipo. La implementación siguiente debe alinear `serverless.yml` con `ColaAnomalias`, `CorrelacionadoraDeAnomalias`, recuperación y `report.linked`; luego probar `LabRole`, Step Functions, Streams y el canal a clientes en AWS Academy. La IA propuesta usa Gemini Developer API en GCP para sugerencias revisables; Bedrock queda condicionado a una prueba de acceso y costo. El [checklist](PENDIENTES.md) establece qué se considera terminado en cada proveedor.

@@ -1,0 +1,32 @@
+flowchart LR
+  OP["CambiarEstadoIncidente<br/>(AWS Lambda · operador)"]
+  LINK["CorrelacionadoraDeReportes<br/>(AWS Lambda · nuevo usuario vinculado)"]
+  INC["Incidents<br/>(DynamoDB tabla · META + HIST + LINK + NOTIFY)"]
+  REP["Reports<br/>(DynamoDB tabla · META + HIST)"]
+  OUT["Outbox + DynamoDB Streams<br/>(DynamoDB tabla + captura de cambios)"]
+  ROUTER["EnrutadoraDeOutbox<br/>(AWS Lambda)"]
+  BUS["OperacionesBus<br/>(EventBridge bus)"]
+  NQ["ColaNotificaciones + DLQ<br/>(SQS · hito / destinatario)"]
+  NCLI["NotificadoraDeClientes<br/>(AWS Lambda)"]
+  CUST["CustomerProfiles<br/>(DynamoDB tabla · contacto/consentimiento)"]
+  SEND["MensajeriaClientesSMS<br/>(Amazon SNS SMS · API Publish; pendiente de permisos)"]
+  PORTAL["red-telecorp-portal<br/>(Amplify Hosting · consulta de estado)"]
+  OPS["AlertadoraDeOperaciones<br/>(AWS Lambda · ruta separada)"]
+  TOPIC["alertas-operaciones<br/>(SNS topic · equipo interno)"]
+
+  OP -->|META actual + HIST| INC
+  LINK -->|LINK + report.linked| INC
+  INC -->|incident.updated / report.linked| OUT --> ROUTER --> BUS
+  BUS -->|hitos: evaluación, confirmado, restablecido| NQ --> NCLI
+  INC -->|LINK: reportes relacionados; NOTIFY: intención única| NCLI
+  REP -->|estado de cada reporte| NCLI
+  CUST -->|preferencia + consentimiento| NCLI
+  NCLI -->|trabajos por destinatario + reintentos| NQ
+  NCLI -->|envío| SEND
+  NCLI -->|canal, hora, intento, resultado| INC
+  INC -->|estado/historial| PORTAL
+  REP -->|cinco estados/historial| PORTAL
+  BUS -->|alerta interna| OPS --> TOPIC
+
+  classDef central fill:#fff1c9,stroke:#aa6e00,stroke-width:4px,color:#1e293b;
+  class INC central;
