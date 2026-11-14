@@ -1,6 +1,6 @@
 # Azure — infraestructura
 
-Aquí irán los archivos reproducibles de infraestructura **Azure**. Ver [PENDIENTES.md](../../PENDIENTES.md), [arquitectura-solucion-v3.md](../../arquitectura-solucion-v3.md) y [decision-ia.md](../../decision-ia.md).
+Aquí irán los archivos reproducibles de infraestructura **Azure**. Ver [PENDIENTES.md](../../PENDIENTES.md), [arquitectura-solucion-v4.md](../../arquitectura-solucion-v4.md) y [decision-ia.md](../../decision-ia.md).
 
 Recursos previstos: Azure Functions en **Flex Consumption** con `always ready = 0`, Storage Account/Table Storage y un almacén de secretos para verificar los eventos HTTPS de AWS. La tabla publica solo estado por zona y hora de última sincronización, sin datos personales.
 

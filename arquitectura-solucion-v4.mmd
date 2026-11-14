@@ -1,6 +1,5 @@
 flowchart LR
   U["Usuarios y operadores<br/>(navegador)"]
-  ANT["30 antenas simuladas<br/>(datos de prueba)"]
   CF["portal.dominio<br/>(Cloudflare DNS + proxy opcional)"]
   GRAF["red-telecorp-observabilidad<br/>(Grafana Cloud opcional)"]
 
@@ -63,7 +62,7 @@ flowchart LR
   WEB --> REP
   WEB --> INC
   WEB -->|estado/historial| OUT
-  ANT -.-> GEN
+  CAT -.->|30 antenas ficticias del catálogo| GEN
   CRON --> GEN --> RAW --> MQ --> CLASS
   TEL <-->|estado anterior, rachas, episodios| CLASS
   CLASS -->|anomalía nueva, recuperación, recurrencia| OUT
