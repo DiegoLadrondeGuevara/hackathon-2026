@@ -13,16 +13,16 @@ Estas casillas describen implementación y prueba, **no elementos ya resueltos p
 - [ ] **OBS-09 · Colectivo sin antena:** contar diez clientes distintos de zona/servicio en menos de 24 h y crear sospecha aun con telemetría normal o ausente; buscar antena/caso técnico después. **Hecho cuando:** el décimo crea un solo incidente sin anomalía y el undécimo comparte `incident_id`; una antena compatible posterior se enlaza sin duplicación.
 - [ ] **OBS-10 · Recuperación técnica:** cinco lecturas normales publican `telemetry.recovered`; la evidencia actualiza el caso y recalcula prioridad. El operador decide restablecimiento; los reportes siguen su propio ciclo. **Hecho cuando:** recuperación sola no marca `Incidents` como restablecido ni cierra `Reports`, y el hito de restablecimiento notifica solo tras decisión operativa.
 
-## Revisión de arquitectura v3 — observaciones del equipo
+## Observaciones del equipo incorporadas a la arquitectura v4
 
-Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. La [propuesta v3](arquitectura-solucion-v3.md) explica las decisiones y conserva los nombres v2.
+Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. La [propuesta v4](arquitectura-solucion-v4.md) conserva las decisiones y los nombres de recursos.
 
 - [ ] **OBS-01 · Detección técnica antes de 10 reportes:** conectar `telemetry.anomaly` → `OperacionesBus` → nueva `ColaAnomalias` + DLQ → nueva `CorrelacionadoraDeAnomalias` → `Incidents` → `VerificarIncidente`. Un episodio nuevo genera una sola sospecha técnica; `0` se atiende inmediatamente y las otras clasificaciones se verifican antes de confirmar afectación. **Hecho cuando:** una antena anómala inicia una ejecución de Step Functions sin reportes de usuarios y queda registrada como sospecha, no como falla confirmada.
 - [ ] **OBS-02 · Unificación de señales:** usar `NetworkCatalog` para cobertura antena-zona; consultar con lectura consistente los punteros activos en `Incidents` por zona/servicio y ventana temporal, enlazar reportes y evidencia técnica al mismo `incident_id` con actualización condicional. Los casos ambiguos quedan para revisión humana. **Hecho cuando:** anomalía → reportes y reportes → anomalía producen un solo incidente; el reporte 10 lo refuerza; un reporte ajeno no se vincula; reintentos no duplican incidente ni notificación.
 - [ ] **OBS-03 · Valor propio de Azure:** añadir una página pública independiente en Azure Static Web Apps sobre las Azure Functions y Table Storage ya propuestos, con `last_synced_at` y aviso de dato atrasado. **Hecho cuando:** la página de Azure muestra el último estado conocido aunque el portal AWS no responda; no se presenta como dato en tiempo real durante una caída del emisor.
 - [ ] **EDGE-01 · Cloudflare delante de Amplify:** si hay dominio, configurar DNS de verificación en modo DNS only, verificar TLS en Amplify y luego probar proxy Full (Strict) solo para el portal; dejar la validación ACM sin proxy. **Hecho cuando:** `portal.<dominio>` sirve el portal por HTTPS sin bucles ni caché de respuestas privadas. Cloudflare no sustituye API Gateway ni demuestra otra nube funcional.
 - [ ] **OBS-04 · Grafana Cloud transversal:** evaluar plan/cuotas, guardar token OTLP fuera de Git y enviar métricas de aplicación sin PII desde AWS, GCP y Azure; probar comprobaciones HTTPS públicas si la cuota lo permite. **Hecho cuando:** un panel distingue salud y retraso de cada nube. No usar el conector directo CloudWatch si exige crear un rol IAM prohibido por AWS Academy.
-- [ ] Alinear [serverless.yml](aws/infra/serverless.yml) con los nuevos recursos v3 `ColaAnomalias` y `CorrelacionadoraDeAnomalias` y ejecutar `serverless package` sin roles IAM nuevos. **Hecho cuando:** plantilla y diagrama v3 coinciden, sin dependencias circulares.
+- [ ] Alinear [serverless.yml](aws/infra/serverless.yml) con `ColaAnomalias` y `CorrelacionadoraDeAnomalias` y ejecutar `serverless package` sin roles IAM nuevos. **Hecho cuando:** plantilla y arquitectura v4 coinciden, sin dependencias circulares.
 
 ## AWS Academy — núcleo operativo
 
@@ -32,7 +32,7 @@ Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. La [propu
 - [ ] Probar el [Serverless Framework v3](aws/infra/serverless.yml) con `LabRole` sin crear roles IAM; completar marcadores y handlers. **Hecho cuando:** otro integrante puede reproducir la infraestructura y se verifica que la plantilla no crea roles.
 - [ ] Crear parámetros `SecureString` separados para firma JWT y firmas entre nubes; probar lectura desde las Lambdas. **Hecho cuando:** las claves no aparecen en Git, frontend ni logs y una invocación autorizada las recupera.
 - [ ] Implementar `POST /auth/login` con `AutenticarUsuario`, cuentas ficticias y contraseñas con hash/sal. Emitir JWT breve con `sub`, rol, `iss`, `aud`, `exp`, `jti`, sin PII. **Hecho cuando:** login válido emite token y credenciales erróneas no lo hacen.
-- [ ] Implementar `AutorizarJWT` como Lambda Authorizer para rutas protegidas de API Gateway; caché desactivada en v2. **Hecho cuando:** token vencido, alterado o de otro rol es rechazado; el usuario no puede consultar reportes ajenos. [Diseño](arquitectura-solucion-v2.md).
+- [ ] Implementar `AutorizarJWT` como Lambda Authorizer para rutas protegidas de API Gateway; caché desactivada en la plantilla actual. **Hecho cuando:** token vencido, alterado o de otro rol es rechazado; el usuario no puede consultar reportes ajenos. [Diseño vigente](arquitectura-solucion-v4.md).
 - [ ] Desplegar SPA estática en Amplify, CORS y límites de API/login. **Hecho cuando:** portal de usuario y operador funcionan por HTTPS sin secretos en el navegador.
 
 ### Datos, API e ingesta

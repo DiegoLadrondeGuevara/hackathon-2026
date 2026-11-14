@@ -1,6 +1,6 @@
 # Decisión de IA para la demo
 
-Fecha de consulta: 14 de noviembre de 2026. **Decisión v1:** usar **Gemini Developer API en su nivel gratuito**, invocado desde una función de Google Cloud, para proponer una hipótesis y pasos de verificación cuando nace un incidente colectivo. Los umbrales, estados y prioridades siguen siendo deterministas. El operador revisa la sugerencia. La arquitectura vigente propuesta está en [arquitectura-solucion-v3.md](arquitectura-solucion-v3.md).
+Fecha de consulta: 14 de noviembre de 2026. **Decisión v1:** usar **Gemini Developer API en su nivel gratuito**, invocado desde una función de Google Cloud, para proponer una hipótesis y pasos de verificación cuando nace un incidente colectivo. Los umbrales, estados y prioridades siguen siendo deterministas. El operador revisa la sugerencia. La arquitectura vigente propuesta está en [arquitectura-solucion-v4.md](arquitectura-solucion-v4.md).
 
 ## Comparación de opciones gratuitas
 

@@ -1,6 +1,6 @@
 # AWS Academy — infraestructura
 
-[serverless.yml](serverless.yml) define el núcleo AWS con **Serverless Framework v3**: nombres, rutas, eventos, tablas, índices, colas/DLQ, S3, EventBridge, Step Functions y SNS. Los `handler` son rutas previstas: **aún no existe código Lambda ni se ha desplegado el stack**. La [arquitectura v2](../../arquitectura-solucion-v2.md) usa los mismos nombres.
+[serverless.yml](serverless.yml) define el núcleo AWS con **Serverless Framework v3**: nombres, rutas, eventos, tablas, índices, colas/DLQ, S3, EventBridge, Step Functions y SNS. Los `handler` son rutas previstas: **aún no existe código Lambda ni se ha desplegado el stack**. La [arquitectura v4](../../arquitectura-solucion-v4.md) conserva los nombres y documenta los cambios pendientes de la plantilla.
 
 La plantilla asigna el `LabRole` existente a todas las Lambdas y a la máquina Step Functions. No declara `AWS::IAM::Role`. Antes de desplegar, comprobar que el rol se puede pasar a ambos servicios, que Step Functions confía en `states.amazonaws.com` y que tiene permisos efectivos para DynamoDB, S3, SQS, Streams, EventBridge, SNS, SSM/KMS, Lambda y CloudWatch. Si falta confianza o permisos, habrá que solicitar un rol compatible al docente.
 

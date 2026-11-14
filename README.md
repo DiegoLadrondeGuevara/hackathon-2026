@@ -1,6 +1,6 @@
 # Red TeleCorp — documentación de la solución serverless multinube
 
-**Hackathon Cloud 2026 · Grupo 12, Escuadrón S3.** Esta es la guía de consulta del diseño v4. Existe una plantilla declarativa de AWS; los handlers, el frontend y las integraciones de GCP y Azure todavía no están desplegados. «Diseñado» no significa «probado» ni puntos obtenidos en la rúbrica.
+**Hackathon Cloud 2026 · Grupo 12, Escuadrón S3.** Esta es la guía de consulta del diseño v4, la única arquitectura vigente. Los ZIP antiguos se conservan como archivos históricos y no definen la solución actual. Existe una plantilla declarativa de AWS; los handlers, el frontend y las integraciones de GCP y Azure todavía no están desplegados. «Diseñado» no significa «probado» ni puntos obtenidos en la rúbrica.
 
 ## Índice
 
