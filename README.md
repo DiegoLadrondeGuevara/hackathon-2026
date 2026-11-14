@@ -4,7 +4,7 @@ Proyecto del grupo 12, Escuadrón S3. Buscamos detectar y gestionar incidentes d
 
 ## Estado actual
 
-**Análisis y arquitectura v1 documentados. Infraestructura y aplicación todavía no desplegadas.** Las decisiones del prototipo no equivalen a puntos otorgados por el jurado. [PENDIENTES.md](PENDIENTES.md) es el tablero de trabajo; una casilla se completa solo con implementación y evidencia.
+**Arquitectura v2 y plantilla declarativa AWS documentadas. Aplicación todavía no desplegada.** Las decisiones del prototipo no equivalen a puntos otorgados por el jurado. [PENDIENTES.md](PENDIENTES.md) es el tablero de trabajo; una casilla se completa solo con implementación y evidencia.
 
 ## Archivos de referencia (raíz)
 
@@ -14,6 +14,9 @@ Proyecto del grupo 12, Escuadrón S3. Buscamos detectar y gestionar incidentes d
 | [puntos-dolor-cliente.md](puntos-dolor-cliente.md) | Contexto, 13 dolores y definiciones S01–S12. |
 | [rubrica-hackathon.md](rubrica-hackathon.md) | Criterios, condiciones de entrega y evidencia pendiente. |
 | [arquitectura-solucion-v1.md](arquitectura-solucion-v1.md) | Diagrama, capas, flujo, tablas y claves de consulta. |
+| [arquitectura-solucion-v2.md](arquitectura-solucion-v2.md) | Nombres v2 de AWS, diagrama actualizado, JWT propio y flujo de IA. |
+| [arquitectura-v2-panorama.svg](arquitectura-v2-panorama.svg) / [PNG](arquitectura-v2-panorama.png) | Vista v2 legible de AWS, GCP y Azure. |
+| [arquitectura-solucion-v2.svg](arquitectura-solucion-v2.svg) / [PNG](arquitectura-solucion-v2.png) | Vista técnica v2 con nombres de Lambdas y recursos. |
 | [arquitectura-v1-panorama.svg](arquitectura-v1-panorama.svg) / [PNG](arquitectura-v1-panorama.png) | Vista clara de las tres nubes para compartir. |
 | [arquitectura-v1-aws.svg](arquitectura-v1-aws.svg) / [PNG](arquitectura-v1-aws.png) | Detalle del núcleo AWS. |
 | [decision-ia.md](decision-ia.md) | Comparación de opciones gratuitas y recomendación de IA. |
@@ -23,7 +26,7 @@ Los `.mmd` de la raíz son los diagramas editables en Mermaid. Los PNG/SVG son v
 
 ## Organización del desarrollo
 
-- [`aws/infra/`](aws/infra/README.md): infraestructura y despliegue de AWS Academy. Las Lambdas usarán el `LabRole` existente; no se crearán roles IAM.
+- [`aws/infra/serverless.yml`](aws/infra/serverless.yml): definiciones de AWS Academy con Serverless Framework v3. Las Lambdas usarán el `LabRole` existente; no se crearán roles IAM. Los handlers todavía no existen.
 - [`gcp/infra/`](gcp/infra/README.md): Cloud Run, BigQuery y secretos de integración.
 - [`azure/infra/`](azure/infra/README.md): Functions y Table Storage.
 - `/chatgpt/`: borradores y archivos temporales locales, **ignorados por Git**. Los documentos importantes quedan en la raíz.
@@ -37,4 +40,4 @@ Los `.mmd` de la raíz son los diagramas editables en Mermaid. Los PNG/SVG son v
 
 ## Próxima acción técnica
 
-Comprobar permisos reales de `LabRole` para Lambda y Step Functions, crear una ruta pequeña API Gateway → Lambda → DynamoDB, y probar los accesos de GCP y Azure. El [checklist](PENDIENTES.md) establece qué se considera terminado en cada proveedor.
+Comprobar permisos reales de `LabRole` para Lambda y Step Functions, crear una ruta pequeña API Gateway → Lambda → DynamoDB, y probar los accesos de GCP y Azure. La IA propuesta usa Gemini Developer API en GCP para sugerencias revisables; Bedrock queda condicionado a una prueba de acceso y costo. El [checklist](PENDIENTES.md) establece qué se considera terminado en cada proveedor.

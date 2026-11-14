@@ -1,16 +1,16 @@
 # Pendientes de implementación — Red TeleCorp
 
-Actualizado: 14 de noviembre de 2026. **Estado:** todo lo siguiente requiere despliegue/prueba; los diagramas y documentos están en la raíz. Marcar `[x]` únicamente después de guardar evidencia (archivo, enlace, captura o resultado de prueba) en esta lista o en [rubrica-hackathon.md](rubrica-hackathon.md). Arquitectura: [v1](arquitectura-solucion-v1.md). IA: [decisión v1](decision-ia.md).
+Actualizado: 14 de noviembre de 2026. **Estado:** hay una [plantilla declarativa AWS](aws/infra/serverless.yml), pero todo lo siguiente requiere implementación/despliegue/prueba; los diagramas y documentos están en la raíz. Marcar `[x]` únicamente después de guardar evidencia (archivo, enlace, captura o resultado de prueba) en esta lista o en [rubrica-hackathon.md](rubrica-hackathon.md). Arquitectura: [v2](arquitectura-solucion-v2.md). IA: [decisión v1](decision-ia.md).
 
 ## AWS Academy — núcleo operativo
 
 ### Acceso y seguridad
 
 - [ ] Comprobar en el laboratorio región, saldo/cuotas y `LabRole`: confianza `lambda.amazonaws.com`, `states.amazonaws.com`, `iam:PassRole` y permisos para API Gateway, DynamoDB, S3, SQS, EventBridge, Step Functions, SSM/KMS, SNS/SES y Amplify. **Hecho cuando:** pruebas mínimas de creación/invocación funcionan o se registran bloqueos exactos.
-- [ ] Definir el mecanismo de despliegue en [`aws/infra/`](aws/infra/README.md) sin crear roles IAM; codificar recursos y parámetros. **Hecho cuando:** otro integrante puede reproducir la infraestructura usando `LabRole` y las instrucciones del repo.
+- [ ] Probar el [Serverless Framework v3](aws/infra/serverless.yml) con `LabRole` sin crear roles IAM; completar marcadores y handlers. **Hecho cuando:** otro integrante puede reproducir la infraestructura y se verifica que la plantilla no crea roles.
 - [ ] Crear parámetros `SecureString` separados para firma JWT y firmas entre nubes; probar lectura desde las Lambdas. **Hecho cuando:** las claves no aparecen en Git, frontend ni logs y una invocación autorizada las recupera.
-- [ ] Implementar `POST /auth/login` con Lambda Auth, cuentas ficticias y contraseñas con hash/sal. Emitir JWT breve con `sub`, rol, `iss`, `aud`, `exp`, `jti`, sin PII. **Hecho cuando:** login válido emite token y credenciales erróneas no lo hacen.
-- [ ] Configurar Lambda Authorizer para rutas protegidas de API Gateway; desactivar caché en v1. **Hecho cuando:** token vencido, alterado o de otro rol es rechazado; el usuario no puede consultar reportes ajenos. [Diseño](arquitectura-solucion-v1.md#vista-por-capas-tres-nubes).
+- [ ] Implementar `POST /auth/login` con `AutenticarUsuario`, cuentas ficticias y contraseñas con hash/sal. Emitir JWT breve con `sub`, rol, `iss`, `aud`, `exp`, `jti`, sin PII. **Hecho cuando:** login válido emite token y credenciales erróneas no lo hacen.
+- [ ] Implementar `AutorizarJWT` como Lambda Authorizer para rutas protegidas de API Gateway; caché desactivada en v2. **Hecho cuando:** token vencido, alterado o de otro rol es rechazado; el usuario no puede consultar reportes ajenos. [Diseño](arquitectura-solucion-v2.md).
 - [ ] Desplegar SPA estática en Amplify, CORS y límites de API/login. **Hecho cuando:** portal de usuario y operador funcionan por HTTPS sin secretos en el navegador.
 
 ### Datos, API e ingesta

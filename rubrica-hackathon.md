@@ -22,10 +22,10 @@ Fuente: [hackathonCloudEnunciado.txt](hackathonCloudEnunciado.txt), líneas 39�
 | R02 | Persistencia y alta disponibilidad de los datos | 2 | Reportes, lecturas, estados e historial sobreviven a fallos razonables; explicar durabilidad, disponibilidad, respaldos o recuperación según los servicios elegidos. | Pendiente | — |
 | R03 | Uso de Step Functions para automatización | 2 | Una máquina de estados real con disparador, pasos, decisiones, fallos y resultado visible; asociarla a un proceso útil del incidente. | Pendiente de despliegue | [Diseño v1](arquitectura-solucion-v1.md); verificar confianza de `LabRole` e `iam:PassRole`. |
 | R04 | Uso de 2 nubes o más | 3 | Componentes funcionales en dos nubes que participen en el flujo; diagrama, configuración y demo. Relacionado con G01. | Pendiente de despliegue | [Diseño de AWS + GCP + Azure](arquitectura-solucion-v1.md); falta prueba real en las tres. |
-| R05 | Arquitectura de la solución | 3 | Diagrama legible con flujos, servicios, datos, seguridad, escalado y frontera entre nubes; justificar decisiones de costo y disponibilidad. | Diseño v1, sin despliegue | [arquitectura-solucion-v1.md](arquitectura-solucion-v1.md); falta validar servicios y diagrama final. |
+| R05 | Arquitectura de la solución | 3 | Diagrama legible con flujos, servicios, datos, seguridad, escalado y frontera entre nubes; justificar decisiones de costo y disponibilidad. | Diseño v2, sin despliegue | [arquitectura-solucion-v2.md](arquitectura-solucion-v2.md), [panorama](arquitectura-v2-panorama.svg) y [plantilla AWS](aws/infra/serverless.yml); falta validar servicios y diagrama final. |
 | R06 | Pitch de 5 minutos | 2 | Video que venda el problema, la solución, el recorrido funcional y los criterios clave dentro del tiempo. Relacionado con G02. | Pendiente | — |
 | R07 | Solución completamente serverless | 2 | Todos los componentes de ejecución, también los de GCP y Azure, sin servidores administrados permanentemente por el equipo; explicar cualquier servicio discutible. | Pendiente de despliegue | [Diseño v1](arquitectura-solucion-v1.md) sin cómputo propio permanente; comprobar configuración efectiva. |
-| R08 | Uso de IA en la solución | 3 | Función de IA real, invocable y útil para un dolor concreto; mostrar entrada, salida, límites y cómo encaja en el flujo. Un prompt en el pitch no constituye por sí solo una función del producto. | Pendiente de despliegue | [Gemini Developer API como asistente de verificación](arquitectura-solucion-v1.md) y [opciones gratuitas](decision-ia.md); falta llamada real y evaluación de salida. |
+| R08 | Uso de IA en la solución | 3 | Función de IA real, invocable y útil para un dolor concreto; mostrar entrada, salida, límites y cómo encaja en el flujo. Un prompt en el pitch no constituye por sí solo una función del producto. | Pendiente de despliegue | [Gemini Developer API como asistente de verificación](arquitectura-solucion-v2.md) y [opciones gratuitas](decision-ia.md); falta llamada real y evaluación de salida. |
 
 **Control:** máximos `3+2+2+3+3+2+2+3 = 20`. Puntuación otorgada: **aún no evaluada**. La rúbrica no da subcriterios ni garantiza puntos parciales por una evidencia determinada.
 
@@ -68,7 +68,7 @@ Las decisiones S01–S12 ya están **definidas como propuesta v1** en [puntos-do
 | S11 | Carga, latencia, reintentos y retención de la demo | Propuesta v1 | Pendiente |
 | S12 | Indicadores históricos y procedencia de las señales | Propuesta v1 | Pendiente |
 
-**Arquitectura v1:** el equipo decidió usar **AWS Academy + Google Cloud/GCP + Azure**. Existe un [diagrama y diseño por capas](arquitectura-solucion-v1.md). Siguen pendientes las pruebas de permisos y despliegue en las tres cuentas, presupuesto/cuotas, autenticación, mensajería e IA disponibles; los puntos de la rúbrica no se consideran logrados solo por dibujar el diseño.
+**Arquitectura v2:** el equipo decidió usar **AWS Academy + Google Cloud/GCP + Azure**. Existen [diagrama v2](arquitectura-solucion-v2.md) y [plantilla AWS](aws/infra/serverless.yml). Siguen pendientes las pruebas de permisos y despliegue en las tres cuentas, presupuesto/cuotas, autenticación, mensajería e IA disponibles; los puntos de la rúbrica no se consideran logrados solo por dibujar el diseño.
 
 ## Restricciones de AWS Academy que deben guiar la arquitectura
 

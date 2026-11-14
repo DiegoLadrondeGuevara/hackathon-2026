@@ -1,0 +1,607 @@
+# Inventario declarativo de AWS Academy. Los handlers son contratos: aun no existen.
+# Reemplazar org y accountId; comprobar LabRole, region y permisos antes de desplegar.
+service: red-telecorp
+# org: xxxx  # completar solo si el equipo usa Serverless Dashboard
+frameworkVersion: '3'
+
+custom:
+  accountId: 'xxxxxxxxxxxx'
+  prefix: ${self:service}-${sls:stage}
+  rawBucketName: ${self:custom.prefix}-metricas-${self:custom.accountId}
+  jwtKeyParameter: /${self:custom.prefix}/jwt/firma
+  gcpKeyParameter: /${self:custom.prefix}/integraciones/gcp/firma
+  azureKeyParameter: /${self:custom.prefix}/integraciones/azure/firma
+
+provider:
+  name: aws
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  runtime: python3.11
+  architecture: arm64
+  memorySize: 256
+  timeout: 15
+  logRetentionInDays: 14
+  # Un solo rol existente. No declarar iam.role.statements ni roles por funcion.
+  iam:
+    role: arn:aws:iam::${self:custom.accountId}:role/LabRole
+  httpApi:
+    name: ${self:custom.prefix}-api-http
+    payload: '2.0'
+    cors:
+      allowedOrigins:
+        - ${env:PORTAL_ORIGIN, 'https://example.invalid'}
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+        - Idempotency-Key
+      allowedMethods:
+        - GET
+        - POST
+        - PATCH
+        - OPTIONS
+    authorizers:
+      AutorizarJWT:
+        type: request
+        functionName: AutorizarJWT
+        name: ${self:custom.prefix}-authorizer-jwt
+        identitySource:
+          - $request.header.Authorization
+        resultTtlInSeconds: 0
+        payloadVersion: '2.0'
+        enableSimpleResponses: true
+  environment:
+    STAGE: ${sls:stage}
+    JWT_ISSUER: red-telecorp
+    JWT_AUDIENCE: red-telecorp-portal
+    JWT_KEY_PARAMETER: ${self:custom.jwtKeyParameter}
+    CUSTOMER_PROFILES_TABLE: !Ref CustomerProfilesTable
+    NETWORK_CATALOG_TABLE: !Ref NetworkCatalogTable
+    REPORTS_TABLE: !Ref ReportsTable
+    CORRELATION_MEMBERS_TABLE: !Ref CorrelationMembersTable
+    INCIDENTS_TABLE: !Ref IncidentsTable
+    TELEMETRY_TABLE: !Ref TelemetryTable
+    OUTBOX_TABLE: !Ref OutboxTable
+    RAW_METRICS_BUCKET: ${self:custom.rawBucketName}
+    EVENT_BUS_NAME: !Ref OperacionesBus
+    OPERACIONES_TOPIC_ARN: !Ref AlertasOperacionesTopic
+    GCP_KEY_PARAMETER: ${self:custom.gcpKeyParameter}
+    AZURE_KEY_PARAMETER: ${self:custom.azureKeyParameter}
+    # Destinos reales y claves se configuran fuera de Git.
+    GCP_INGEST_URL: ${env:GCP_INGEST_URL, 'https://example.invalid/gcp/ingest'}
+    AZURE_INGEST_URL: ${env:AZURE_INGEST_URL, 'https://example.invalid/azure/ingest'}
+
+package:
+  individually: true
+  patterns:
+    - '!chatgpt/**'
+    - '!**/*.md'
+
+functions:
+  AutenticarUsuario:
+    name: ${self:custom.prefix}-AutenticarUsuario
+    handler: src.functions.autenticarUsuario.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /auth/login
+
+  AutorizarJWT:
+    name: ${self:custom.prefix}-AutorizarJWT
+    handler: src.functions.autorizarJwt.handler
+
+  CrearReporte:
+    name: ${self:custom.prefix}-CrearReporte
+    handler: src.functions.crearReporte.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /reports
+          authorizer:
+            name: AutorizarJWT
+
+  ListarMisReportes:
+    name: ${self:custom.prefix}-ListarMisReportes
+    handler: src.functions.listarMisReportes.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /reports/mine
+          authorizer:
+            name: AutorizarJWT
+
+  ObtenerReporte:
+    name: ${self:custom.prefix}-ObtenerReporte
+    handler: src.functions.obtenerReporte.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /reports/{id}
+          authorizer:
+            name: AutorizarJWT
+
+  ListarIncidentesZona:
+    name: ${self:custom.prefix}-ListarIncidentesZona
+    handler: src.functions.listarIncidentesZona.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /ops/incidents
+          authorizer:
+            name: AutorizarJWT
+
+  CambiarEstadoReporte:
+    name: ${self:custom.prefix}-CambiarEstadoReporte
+    handler: src.functions.cambiarEstadoReporte.handler
+    events:
+      - httpApi:
+          method: PATCH
+          path: /ops/reports/{id}/status
+          authorizer:
+            name: AutorizarJWT
+
+  CambiarEstadoIncidente:
+    name: ${self:custom.prefix}-CambiarEstadoIncidente
+    handler: src.functions.cambiarEstadoIncidente.handler
+    events:
+      - httpApi:
+          method: PATCH
+          path: /ops/incidents/{id}/status
+          authorizer:
+            name: AutorizarJWT
+
+  ObtenerTendencias:
+    name: ${self:custom.prefix}-ObtenerTendencias
+    handler: src.functions.obtenerTendencias.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /ops/trends
+          authorizer:
+            name: AutorizarJWT
+
+  ObtenerSugerenciaIA:
+    name: ${self:custom.prefix}-ObtenerSugerenciaIA
+    handler: src.functions.obtenerSugerenciaIa.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /ops/incidents/{id}/ai-suggestion
+          authorizer:
+            name: AutorizarJWT
+
+  GeneradoraDeMetricasYLotes:
+    name: ${self:custom.prefix}-GeneradoraDeMetricasYLotes
+    handler: src.functions.generadoraDeMetricasYLotes.handler
+    timeout: 30
+    events:
+      - schedule:
+          name: ${self:custom.prefix}-generar-metricas-cada-minuto
+          rate: rate(1 minute)
+          enabled: true
+
+  ClasificadoraDeMetricas:
+    name: ${self:custom.prefix}-ClasificadoraDeMetricas
+    handler: src.functions.clasificadoraDeMetricas.handler
+    timeout: 30
+    events:
+      - sqs:
+          arn: !GetAtt ColaMetricas.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  EnrutadoraDeOutbox:
+    name: ${self:custom.prefix}-EnrutadoraDeOutbox
+    handler: src.functions.enrutadoraDeOutbox.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt OutboxTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+          functionResponseType: ReportBatchItemFailures
+          maximumRetryAttempts: 3
+          destinations:
+            onFailure:
+              arn: arn:aws:sqs:${self:provider.region}:${self:custom.accountId}:${self:custom.prefix}-outbox-dlq
+
+  CorrelacionadoraDeReportes:
+    name: ${self:custom.prefix}-CorrelacionadoraDeReportes
+    handler: src.functions.correlacionadoraDeReportes.handler
+    timeout: 30
+    environment:
+      VERIFICAR_INCIDENTE_ARN: !Ref VerificarIncidenteStateMachine
+    events:
+      - sqs:
+          arn: !GetAtt ColaReportes.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  VerificadoraDeEvidencias:
+    name: ${self:custom.prefix}-VerificadoraDeEvidencias
+    handler: src.functions.verificadoraDeEvidencias.handler
+
+  CalculadoraDePrioridad:
+    name: ${self:custom.prefix}-CalculadoraDePrioridad
+    handler: src.functions.calculadoraDePrioridad.handler
+
+  AlertadoraDeOperaciones:
+    name: ${self:custom.prefix}-AlertadoraDeOperaciones
+    handler: src.functions.alertadoraDeOperaciones.handler
+
+  NotificadoraDeClientes:
+    name: ${self:custom.prefix}-NotificadoraDeClientes
+    handler: src.functions.notificadoraDeClientes.handler
+    events:
+      - sqs:
+          arn: !GetAtt ColaNotificaciones.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  PublicadoraHaciaGCP:
+    name: ${self:custom.prefix}-PublicadoraHaciaGCP
+    handler: src.functions.publicadoraHaciaGcp.handler
+    timeout: 30
+    events:
+      - sqs:
+          arn: !GetAtt ColaGCP.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+  PublicadoraHaciaAzure:
+    name: ${self:custom.prefix}-PublicadoraHaciaAzure
+    handler: src.functions.publicadoraHaciaAzure.handler
+    timeout: 30
+    events:
+      - sqs:
+          arn: !GetAtt ColaAzure.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    CustomerProfilesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-CustomerProfiles
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+
+    NetworkCatalogTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-NetworkCatalog
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+
+    ReportsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-Reports
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+          - { AttributeName: GSIUserPK, AttributeType: S }
+          - { AttributeName: GSIUserSK, AttributeType: S }
+          - { AttributeName: GSIZoneStatePK, AttributeType: S }
+          - { AttributeName: GSIZoneStateSK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+        GlobalSecondaryIndexes:
+          - IndexName: GSI-User
+            KeySchema:
+              - { AttributeName: GSIUserPK, KeyType: HASH }
+              - { AttributeName: GSIUserSK, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+          - IndexName: GSI-ZoneState
+            KeySchema:
+              - { AttributeName: GSIZoneStatePK, KeyType: HASH }
+              - { AttributeName: GSIZoneStateSK, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+        TimeToLiveSpecification: { AttributeName: ExpiresAt, Enabled: true }
+
+    CorrelationMembersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-CorrelationMembers
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+        TimeToLiveSpecification: { AttributeName: ExpiresAt, Enabled: true }
+
+    IncidentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-Incidents
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+          - { AttributeName: GSIZoneOpenPK, AttributeType: S }
+          - { AttributeName: GSIZoneOpenSK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+        GlobalSecondaryIndexes:
+          - IndexName: GSI-ZoneOpen
+            KeySchema:
+              - { AttributeName: GSIZoneOpenPK, KeyType: HASH }
+              - { AttributeName: GSIZoneOpenSK, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+        TimeToLiveSpecification: { AttributeName: ExpiresAt, Enabled: true }
+
+    TelemetryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-Telemetry
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: SK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+          - { AttributeName: SK, KeyType: RANGE }
+        TimeToLiveSpecification: { AttributeName: ExpiresAt, Enabled: true }
+
+    OutboxTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.prefix}-Outbox
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - { AttributeName: PK, AttributeType: S }
+          - { AttributeName: StatusPK, AttributeType: S }
+          - { AttributeName: StatusSK, AttributeType: S }
+        KeySchema:
+          - { AttributeName: PK, KeyType: HASH }
+        GlobalSecondaryIndexes:
+          - IndexName: GSI-Pendientes
+            KeySchema:
+              - { AttributeName: StatusPK, KeyType: HASH }
+              - { AttributeName: StatusSK, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+        StreamSpecification: { StreamViewType: NEW_IMAGE }
+        TimeToLiveSpecification: { AttributeName: ExpiresAt, Enabled: true }
+
+    ColaMetricasDLQ:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-metricas-dlq', MessageRetentionPeriod: 1209600 }
+    ColaMetricas:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.prefix}-metricas
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaMetricasDLQ.Arn
+          maxReceiveCount: 5
+    ColaReportesDLQ:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-reportes-dlq', MessageRetentionPeriod: 1209600 }
+    ColaReportes:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.prefix}-reportes
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaReportesDLQ.Arn
+          maxReceiveCount: 5
+    ColaNotificacionesDLQ:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-notificaciones-dlq', MessageRetentionPeriod: 1209600 }
+    ColaNotificaciones:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.prefix}-notificaciones
+        VisibilityTimeout: 90
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaNotificacionesDLQ.Arn
+          maxReceiveCount: 5
+    ColaGCPDLQ:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-gcp-dlq', MessageRetentionPeriod: 1209600 }
+    ColaGCP:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.prefix}-gcp
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaGCPDLQ.Arn
+          maxReceiveCount: 5
+    ColaAzureDLQ:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-azure-dlq', MessageRetentionPeriod: 1209600 }
+    ColaAzure:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.prefix}-azure
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaAzureDLQ.Arn
+          maxReceiveCount: 5
+    ColaFallosOutbox:
+      Type: AWS::SQS::Queue
+      Properties: { QueueName: '${self:custom.prefix}-outbox-dlq', MessageRetentionPeriod: 1209600 }
+
+    PoliticaBucketHaciaColaMetricas:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues: [!Ref ColaMetricas]
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: { Service: s3.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt ColaMetricas.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: arn:aws:s3:::${self:custom.rawBucketName}
+                StringEquals:
+                  aws:SourceAccount: ${self:custom.accountId}
+
+    BucketMetricasCrudas:
+      Type: AWS::S3::Bucket
+      DependsOn: PoliticaBucketHaciaColaMetricas
+      Properties:
+        BucketName: ${self:custom.rawBucketName}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+        LifecycleConfiguration:
+          Rules:
+            - Id: borrar-lotes-crudos-demo
+              Status: Enabled
+              ExpirationInDays: 30
+        NotificationConfiguration:
+          QueueConfigurations:
+            - Event: s3:ObjectCreated:*
+              Queue: !GetAtt ColaMetricas.Arn
+              Filter:
+                S3Key:
+                  Rules:
+                    - { Name: prefix, Value: telemetry/raw/ }
+                    - { Name: suffix, Value: .json.gz }
+
+    OperacionesBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.prefix}-operaciones
+
+    ReglaReportes:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: ${self:custom.prefix}-reportes-creados
+        EventBusName: !Ref OperacionesBus
+        EventPattern:
+          source: [red.telecorp]
+          detail-type: [report.created]
+        State: ENABLED
+        Targets:
+          - { Id: cola-reportes, Arn: !GetAtt ColaReportes.Arn }
+
+    ReglaNotificaciones:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: ${self:custom.prefix}-notificaciones
+        EventBusName: !Ref OperacionesBus
+        EventPattern:
+          source: [red.telecorp]
+          detail-type: [incident.updated, report.status.changed]
+        State: ENABLED
+        Targets:
+          - { Id: cola-notificaciones, Arn: !GetAtt ColaNotificaciones.Arn }
+
+    ReglaGCP:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: ${self:custom.prefix}-hacia-gcp
+        EventBusName: !Ref OperacionesBus
+        EventPattern:
+          source: [red.telecorp]
+          detail-type: [incident.updated, telemetry.anomaly, incident.suspected]
+        State: ENABLED
+        Targets:
+          - { Id: cola-gcp, Arn: !GetAtt ColaGCP.Arn }
+
+    ReglaAzure:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: ${self:custom.prefix}-hacia-azure
+        EventBusName: !Ref OperacionesBus
+        EventPattern:
+          source: [red.telecorp]
+          detail-type: [incident.updated]
+        State: ENABLED
+        Targets:
+          - { Id: cola-azure, Arn: !GetAtt ColaAzure.Arn }
+
+    PoliticaBusHaciaColas:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ColaReportes
+          - !Ref ColaNotificaciones
+          - !Ref ColaGCP
+          - !Ref ColaAzure
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - { Effect: Allow, Principal: { Service: events.amazonaws.com }, Action: 'sqs:SendMessage', Resource: !GetAtt ColaReportes.Arn, Condition: { ArnEquals: { 'aws:SourceArn': !GetAtt ReglaReportes.Arn } } }
+            - { Effect: Allow, Principal: { Service: events.amazonaws.com }, Action: 'sqs:SendMessage', Resource: !GetAtt ColaNotificaciones.Arn, Condition: { ArnEquals: { 'aws:SourceArn': !GetAtt ReglaNotificaciones.Arn } } }
+            - { Effect: Allow, Principal: { Service: events.amazonaws.com }, Action: 'sqs:SendMessage', Resource: !GetAtt ColaGCP.Arn, Condition: { ArnEquals: { 'aws:SourceArn': !GetAtt ReglaGCP.Arn } } }
+            - { Effect: Allow, Principal: { Service: events.amazonaws.com }, Action: 'sqs:SendMessage', Resource: !GetAtt ColaAzure.Arn, Condition: { ArnEquals: { 'aws:SourceArn': !GetAtt ReglaAzure.Arn } } }
+
+    AlertasOperacionesTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:custom.prefix}-alertas-operaciones
+
+    VerificarIncidenteStateMachine:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        StateMachineName: ${self:custom.prefix}-VerificarIncidente
+        StateMachineType: STANDARD
+        RoleArn: arn:aws:iam::${self:custom.accountId}:role/LabRole
+        Definition:
+          StartAt: VerificarEvidencias
+          States:
+            VerificarEvidencias:
+              Type: Task
+              Resource: !GetAtt VerificadoraDeEvidenciasLambdaFunction.Arn
+              Next: CalcularPrioridad
+              Retry:
+                - ErrorEquals: [States.TaskFailed]
+                  IntervalSeconds: 2
+                  MaxAttempts: 2
+                  BackoffRate: 2
+              Catch:
+                - ErrorEquals: [States.ALL]
+                  Next: FalloVerificacion
+            CalcularPrioridad:
+              Type: Task
+              Resource: !GetAtt CalculadoraDePrioridadLambdaFunction.Arn
+              Next: AlertarOperaciones
+              Catch:
+                - ErrorEquals: [States.ALL]
+                  Next: FalloVerificacion
+            AlertarOperaciones:
+              Type: Task
+              Resource: !GetAtt AlertadoraDeOperacionesLambdaFunction.Arn
+              End: true
+              Catch:
+                - ErrorEquals: [States.ALL]
+                  Next: FalloVerificacion
+            FalloVerificacion:
+              Type: Fail
+              Error: VerificacionIncompleta
+              Cause: Revisar historial de ejecucion y reintentar manualmente
+
+  Outputs:
+    ApiHttpId:
+      Value: !Ref HttpApi
+    BusOperacionesArn:
+      Value: !GetAtt OperacionesBus.Arn
+    MaquinaVerificarIncidenteArn:
+      Value: !Ref VerificarIncidenteStateMachine
+    BucketMetricasNombre:
+      Value: !Ref BucketMetricasCrudas

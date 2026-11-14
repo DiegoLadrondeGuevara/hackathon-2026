@@ -1,0 +1,48 @@
+flowchart TB
+  U["Navegador<br/>usuario u operador"]
+
+  subgraph AWS["AWS Academy - fuente de verdad"]
+    AMP["Amplify Hosting<br/>red-telecorp-portal"]
+    API["API Gateway HTTP<br/>red-telecorp-dev-api-http"]
+    LOGIN["AutenticarUsuario<br/>JWT 15 min"]
+    AUTHZ["AutorizarJWT<br/>Lambda Authorizer"]
+    WEB["Lambdas de reportes e incidentes<br/>incluye ObtenerSugerenciaIA"]
+    DB["DynamoDB<br/>7 tablas operativas"]
+    MET["GeneradoraDeMetricasYLotes<br/>S3 + SQS + ClasificadoraDeMetricas"]
+    BUS["EnrutadoraDeOutbox<br/>OperacionesBus + colas/DLQ"]
+    CORR["CorrelacionadoraDeReportes<br/>10 usuarios en menos de 24 h"]
+    SFN["VerificarIncidente<br/>Step Functions Standard"]
+    NOTIF["SNS y NotificadoraDeClientes"]
+    GOUT["PublicadoraHaciaGCP"]
+    AOUT["PublicadoraHaciaAzure"]
+    SSM["SSM SecureString<br/>claves JWT e integraciones"]
+  end
+
+  subgraph GCP["GCP - analitica e IA"]
+    GR["Cloud Run function"]
+    BQ["BigQuery"]
+    AI["Gemini Developer API<br/>hipotesis revisable"]
+  end
+
+  subgraph AZ["Azure - estado publico"]
+    AF["Azure Functions"]
+    AT["Azure Table Storage"]
+  end
+
+  U --> AMP --> API
+  API -->|login publico| LOGIN --> DB
+  LOGIN -->|JWT| U
+  API -->|rutas protegidas| AUTHZ --> WEB --> DB
+  SSM --> LOGIN
+  SSM --> AUTHZ
+  MET --> DB
+  DB --> BUS
+  BUS --> CORR --> SFN --> DB
+  BUS --> NOTIF
+  BUS --> GOUT -->|datos sin PII| GR
+  GR --> BQ
+  GR --> AI
+  AI -->|sugerencia| GR --> GOUT -->|guarda en Incidents| DB
+  BUS --> AOUT -->|estado sin PII| AF --> AT
+  SSM --> GOUT
+  SSM --> AOUT
