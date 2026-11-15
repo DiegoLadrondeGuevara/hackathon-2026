@@ -49,7 +49,7 @@ def test_sanitized_delivery_and_duplicate_ack(configured, monkeypatch, caplog):
     def transport(req, timeout):
         sent.append(json.loads(req.data))
         assert req.get_header("X-api-key") == "test-key"
-        assert timeout == 10
+        assert timeout == 20  # más que los 15 s que espera GCP en /ingest
         return Response({"inserted": 0})
 
     monkeypatch.setattr(outbound, "urlopen", transport)

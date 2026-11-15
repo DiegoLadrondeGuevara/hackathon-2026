@@ -6,6 +6,8 @@ from decimal import Decimal
 from common import config, outbound, pii
 
 log = logging.getLogger(__name__)
+# /ingest de GCP espera hasta 15 s (Cloud Run 25 s): se espera más que eso, y menos que el timeout de la Lambda (30 s).
+INGEST_TIMEOUT = 20
 FIELDS = {
     "report.created": "report_id zone_id service problem_type created_at",
     "report.status_changed": "report_id zone_id from_status to_status at",
@@ -62,6 +64,7 @@ def handler(event, context):
         try:
             response = outbound.post_json(
                 base.rstrip("/") + "/ingest", {"events": [e for _, e in batch]}, {"X-Api-Key": key},
+                timeout=INGEST_TIMEOUT,
             )
             if (not isinstance(response, dict) or type(response.get("inserted")) is not int
                     or not 0 <= response["inserted"] <= len(batch)):
