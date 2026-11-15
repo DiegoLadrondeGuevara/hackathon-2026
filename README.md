@@ -30,6 +30,7 @@ Los eventos nunca se publican directo: se escriben en la tabla `Outbox` dentro d
 | `scripts/` | Parámetros SSM, datos de demo, prueba de humo, escenarios y prueba de carga. |
 | `gcp/` | Cloud Run (`/ingest`, `/suggest`), BigQuery y Gemini, con Terraform. |
 | `azure/` | Reservada para la página de estado (Functions y Static Web Apps). |
+| `frontend/cliente/` | Portal React de clientes y operadores; desarrollo local y configuración de Amplify en [su README](frontend/cliente/README.md). |
 | `arquitectura/` | Diagramas de la solución. |
 
 ## Requisitos
@@ -102,6 +103,10 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
 
 Operador de demo: `OP001`. Clientes de demo: `70000001` a `70000020`.
+
+## Portal de servicio
+
+La aplicación en [`frontend/cliente/`](frontend/cliente/README.md) sirve a **clientes y operadores** según el rol devuelto por el login. Los clientes crean y siguen reportes y consultan el estado de su zona. Los operadores revisan la cola por prioridad, el detalle y el historial de incidentes, los reportes por zona, las tendencias y las sugerencias de IA bajo demanda; pueden cambiar estados con motivo y confirmación. Las consultas principales se probaron contra el API de `dev` con cuentas ficticias. El [`amplify.yml`](amplify.yml) prepara una sola aplicación Amplify para ambos roles. **Falta** crear o publicar la aplicación en Amplify y validar desde su dominio los cambios de estado, la creación de reportes, la paginación y el vencimiento de sesión. Cloudflare delante del portal continúa pendiente.
 
 ## API (API Gateway HTTP API)
 
