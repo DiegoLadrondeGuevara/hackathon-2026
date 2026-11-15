@@ -100,6 +100,31 @@ def test_vista_publica_para_cliente(aws):
     }
 
 
+def test_vista_publica_excluye_cerrados_y_el_operador_los_ve(aws):
+    abierto = _put_incident(1)
+    cerrado = _put_incident(2, status="CERRADO", pointer=False)
+    restablecido = _put_incident(3, service="MOVIL", status="RESTABLECIDO")
+    status, body = _list(zone_id="Z05")
+    assert status == 200 and body["next_cursor"] is None
+    assert [i["incident_id"] for i in body["items"]] == [restablecido, abierto]
+    _, body = _list(sub=OPERADOR, role="OPERATOR", zone_id="Z05")
+    assert [i["incident_id"] for i in body["items"]] == [restablecido, cerrado, abierto]
+
+
+def test_pagina_publica_corta_o_vacia_conserva_el_cursor(aws):
+    abierto = _put_incident(1, pointer=False)
+    _put_incident(2, status="CERRADO", pointer=False)
+    _put_incident(3, status="CERRADO", pointer=False)
+    _, p1 = _list(zone_id="Z05", limit="2")
+    assert p1["items"] == [] and p1["next_cursor"]  # el filtro se aplica después de limit
+    vistos, cursor = [], p1["next_cursor"]
+    while cursor:
+        _, page = _list(zone_id="Z05", limit="2", cursor=cursor)
+        vistos += [i["incident_id"] for i in page["items"]]
+        cursor = page["next_cursor"]
+    assert vistos == [abierto]
+
+
 def test_operador_ve_el_meta_completo_por_zona(aws):
     i1 = _put_incident(1)
     status, body = _list(sub=OPERADOR, role="OPERATOR", zone_id="Z05")
