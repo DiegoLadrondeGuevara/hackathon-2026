@@ -1,7 +1,9 @@
 """BigQuery transactions serialize writers; event_id deduplication is global."""
 
 import os
+import random
 import re
+import threading
 import time
 import uuid
 from functools import lru_cache
@@ -9,6 +11,11 @@ from functools import lru_cache
 from deadline import remaining
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud import bigquery
+
+# Avoid self-conflicts among concurrent requests handled by one Cloud Run process.
+# Other instances may still conflict: the BigQuery transaction is the global
+# idempotency mechanism; AWS/SQS must retry a transient HTTP 503.
+_local_ingest_lock = threading.Lock()
 
 COLUMNS = (
     "event_id",
@@ -84,17 +91,31 @@ def merge_rows(rows, deadline, bq=None):
     COMMIT TRANSACTION;
     SELECT inserted;
     """
-    for attempt in range(3):
-        try:
-            result = _query(sql, params, deadline, bq, mutation=True)
-            return int(result[0]["inserted"])
-        except (BadRequest, Conflict) as exc:
-            # Only known transaction conflicts are safe to retry here. Never log error text (SQL/parameters).
-            conflict = "concurrent" in str(exc).lower() or "transaction is aborted" in str(exc).lower()
-            if not conflict or attempt == 2:
-                raise
-            time.sleep(min(0.1 * (2**attempt), remaining(deadline)))
-    raise RuntimeError("Transaction did not complete")
+    # Serialize within an instance to avoid needless global lock contention.
+    # The deadline also applies to waiting for the process-local lock.
+    if not _local_ingest_lock.acquire(timeout=remaining(deadline)):
+        raise TimeoutError("Ingest capacity exhausted")
+    try:
+        for attempt in range(3):
+            try:
+                result = _query(sql, params, deadline, bq, mutation=True)
+                return int(result[0]["inserted"])
+            except (BadRequest, Conflict) as exc:
+                # Only known transaction conflicts are safe to retry; a timeout
+                # can mean that the job committed, so AWS must redeliver using
+                # the same event_id and our atomic global guard.
+                conflict = "concurrent" in str(exc).lower() or "transaction is aborted" in str(exc).lower()
+                if not conflict or attempt == 2:
+                    raise
+                # Small bounded backoff, including jitter. BigQuery can take
+                # longer to release its global lock; the HTTP 503 is retryable
+                # by AWS/SQS if it cannot be resolved inside the HTTP budget.
+                pause = min(0.25 * (2**attempt) + random.uniform(0, 0.2), remaining(deadline))
+                if pause > 0:
+                    time.sleep(pause)
+        raise RuntimeError("Transaction did not complete")
+    finally:
+        _local_ingest_lock.release()
 
 
 def zone_summary(zone_id, days, deadline, bq=None):

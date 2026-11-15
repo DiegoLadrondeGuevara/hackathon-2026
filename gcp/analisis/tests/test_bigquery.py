@@ -78,3 +78,46 @@ def test_history_aggregation_has_no_sample_limit():
     assert "LIMIT 35" not in sql and "PARTITION BY incident_id" in sql
     assert [p.value for p in args["job_config"].query_parameters] == ["Z01", 30]
     assert "customer_hash" not in str(facts) and "payload" not in str(facts)
+
+
+def test_concurrent_requests_on_one_instance_are_serialized(event):
+    """No two BigQuery transactions overlap within the same Cloud Run process."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Lock
+
+    active = 0
+    maximum = 0
+    seen = set()
+    guard = Lock()
+
+    class SlowJob:
+        def __init__(self, key):
+            self.key = key
+
+        def result(self, **kwargs):
+            nonlocal active, maximum
+            with guard:
+                active += 1
+                maximum = max(maximum, active)
+            try:
+                time.sleep(0.025)
+                with guard:
+                    if self.key in seen:
+                        return [{"inserted": 0}]
+                    seen.add(self.key)
+                    return [{"inserted": 1}]
+            finally:
+                with guard:
+                    active -= 1
+
+    class SlowBigQuery:
+        def query(self, sql, **kwargs):
+            params = kwargs["job_config"].query_parameters
+            event_id = next(p.value for p in params if p.name == "event_id_0")
+            return SlowJob(event_id)
+
+    row = to_row(sanitize_event(event))
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda _: repo.merge_rows([row], time.monotonic() + 2, SlowBigQuery()), range(4)))
+    assert sorted(results) == [0, 0, 0, 1]
+    assert maximum == 1

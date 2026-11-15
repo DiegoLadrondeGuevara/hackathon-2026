@@ -31,7 +31,7 @@ The model is configurable; [Google lists Flash-Lite as stable](https://aistudio.
 Each ingestion transaction updates the initialized singleton in `ingest_guard` before its global `event_id` MERGE.
 Concurrent transactions conflict and roll back; bounded retries and SQS redelivery handle them.
 This follows [BigQuery transaction conflict semantics](https://docs.cloud.google.com/bigquery/docs/transactions).
-No process-local lock, insertId, unique constraint, instance count or date predicate is used as a uniqueness guarantee.
+A process-local lock reduces conflicts among requests on the same instance, but is NOT a global uniqueness guarantee. BigQuery's guarded transaction remains mandatory across instances; do not rely on insertId, unique constraints or event-date predicates for exact idempotence.
 All writers must use this transaction path. Existing duplicate data must be audited before migration; it is not deleted.
 Identical duplicates in one batch are collapsed; contradictory copies in one batch return 400.
 Across requests the first committed event wins, even if a later copy changes its timestamp.
@@ -45,6 +45,40 @@ Cold starts/network overhead are outside the application budget; AWS independent
 Statistics cover the whole requested zone/window (1–90 days), including event counts, latest incident priorities,
 and anomalous antenna episodes. `detection_lag_seconds` is unavailable because the current event contract omits
 it; the prompt receives null, never a fabricated measurement. No raw payloads or customer hashes enter Gemini.
+
+## Fix for empty `ingest_guard` and contention
+
+The Terraform `google_bigquery_job.initialize_guard` resource does not substitute for checking
+that the `singleton` row actually exists. `deploy.sh --apply` now runs the idempotent
+`scripts/ensure_guard.py --apply` after Terraform bootstrap, before any Cloud Run build.
+This uses the `bq` CLI (already present in Cloud Shell), requires no Python venv and does
+not delete or modify existing events.
+
+For an **already deployed** project, repair/verify the guard without redeploying:
+
+```bash
+python3 gcp/scripts/ensure_guard.py gen-lang-client-0984590124 --location us-central1 --apply
+```
+
+Then test only **one synthetic event and its replay**, before testing parallel traffic:
+
+```bash
+URL="https://red-telecorp-analisis-36yvfgpcwq-uc.a.run.app"
+KEYFILE="${XDG_CONFIG_HOME:-$HOME/.config}/redtelecorp/gen-lang-client-0984590124/gcp_api_key"
+python3 gcp/scripts/smoke_single.py "$URL" "$KEYFILE" gen-lang-client-0984590124 --live
+```
+
+The single-request test checks HTTP ingestion, replay `inserted=0`, and exactly one
+physical BigQuery row. It writes ONE synthetic event. This is the safe prerequisite to
+`smoke_test.py` (which sends four overlapping requests). BigQuery **does not queue
+conflicting multi-statement transactions**; another Cloud Run instance can still cause
+503 under load, so AWS must retry SQS messages using unchanged event IDs. A local lock
+improves single-instance concurrency but does not remove the distributed limitation.
+
+Use the exact project/dataset/location from Terraform; if using a custom dataset or
+region, pass `--dataset` / `--location` to both scripts and set `BQ_DATASET` /
+`BQ_LOCATION` when deploying. Do not perform a manual Terraform destroy or delete
+`terraform.tfstate` to repair this condition.
 
 ## Approved deployment only
 

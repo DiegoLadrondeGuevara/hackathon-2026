@@ -7,7 +7,7 @@ PROJECT="${1:?Usage: deploy.sh PROJECT_ID --apply [REGION]}"
 REGION="${3:-us-central1}"
 [[ "$PROJECT" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]] || exit 2
 [[ "$REGION" =~ ^[a-z0-9-]+$ ]] || exit 2
-for bin in terraform gcloud python3; do command -v "$bin" >/dev/null; done
+for bin in terraform gcloud python3 bq; do command -v "$bin" >/dev/null; done
 export TF_VAR_project_id="$PROJECT" TF_VAR_region="$REGION"
 terraform -chdir="$HERE/infra" init -input=false
 terraform -chdir="$HERE/infra" fmt -check
@@ -28,6 +28,13 @@ STATE="$(terraform -chdir="$HERE/infra" state list)"
 if ! grep -Fq 'google_cloud_run_v2_service.api[0]' <<< "$STATE"; then
   terraform -chdir="$HERE/infra" apply -var=deploy_service=false
 fi
+# A Terraform BigQuery job can exist while its SQL has not left the expected row.
+# Verify (and if missing, initialize) the singleton before sending traffic to Cloud Run.
+# NOTE: Change BQ_DATASET / BQ_LOCATION only if Terraform uses custom values.
+DATASET="${BQ_DATASET:-redtelecorp}"
+DATA_LOCATION="${BQ_LOCATION:-$REGION}"
+python3 "$HERE/scripts/ensure_guard.py" "$PROJECT" \
+  --dataset "$DATASET" --location "$DATA_LOCATION" --apply
 # Secret values bypass Terraform and stay out of arguments, output and the repository.
 EXISTING_API_VERSIONS="$(gcloud secrets versions list rtc-gcp-api-key --project="$PROJECT" --filter=state=ENABLED --format='value(name)')"
 if [[ -z "$EXISTING_API_VERSIONS" ]]; then
