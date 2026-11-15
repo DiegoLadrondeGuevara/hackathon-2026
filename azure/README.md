@@ -71,7 +71,23 @@ El `GET` inicial debe responder `200` y `{"zones":[]}`. Desde `azure/api` en Win
 func azure functionapp publish <functionAppName>
 ```
 
-El código fuente no está incluido en Bicep. Core Tools empaqueta las dependencias y publica la Function. Después, desde la raíz:
+El código fuente no está incluido en Bicep. Core Tools empaqueta las dependencias y publica la Function. El portal se publica por separado:
+
+En Cloud Shell Bash, preparar el portal con la URL de la Function y publicar la Static Web App sin imprimir el token:
+
+```bash
+cd ~/hackathon-azure
+FUNCTION_APP=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.functionAppName.value' --output tsv)
+SWA_NAME=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.staticWebAppName.value' --output tsv)
+mkdir -p azure/web/dist
+cp azure/web/index.html azure/web/staticwebapp.config.json azure/web/dist/
+printf 'window.RED_TELECORP_API_BASE_URL = "https://%s.azurewebsites.net";\n' "$FUNCTION_APP" > azure/web/dist/config.js
+export SWA_CLI_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group rg-red-telecorp-estado-dev --query 'properties.apiKey' --output tsv)
+npx --yes @azure/static-web-apps-cli deploy azure/web/dist --env production --yes
+unset SWA_CLI_DEPLOYMENT_TOKEN
+```
+
+En Windows PowerShell, la alternativa usa `prepare-web.ps1`:
 
 ```powershell
 ./azure/web/prepare-web.ps1 -ApiBaseUrl 'https://<functionAppName>.azurewebsites.net'
