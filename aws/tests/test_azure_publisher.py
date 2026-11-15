@@ -52,6 +52,13 @@ def run(*records, context=None):
     return publisher.handler({"Records": list(records)}, context)
 
 
+def test_textos_publicos_son_los_que_azure_aprueba():
+    assert publisher.PUBLIC_MESSAGE == {
+        "EVALUACION": "Evaluando", "CONFIRMADO": "Incidencia identificada",
+        "RESTABLECIDO": "Servicio restablecido", "SIN_INCIDENTE": "Sin incidencias",
+    }
+
+
 def test_publica_el_estado_de_la_zona(configured, puts):
     assert run(record(1, zone="Z02", status="CONFIRMADO", priority="P1")) == {"batchItemFailures": []}
     (call,) = puts

@@ -22,11 +22,12 @@ PUBLIC_STATUS = {
     "RESTABLECIDO": "RESTABLECIDO",
     "CERRADO": "SIN_INCIDENTE",
 }
+# Azure solo acepta estos textos exactos por estado (rechaza con 400 cualquier otro).
 PUBLIC_MESSAGE = {
     "EVALUACION": "Evaluando",
-    "CONFIRMADO": "Incidencia confirmada, nuestro equipo está trabajando para resolverla",
+    "CONFIRMADO": "Incidencia identificada",
     "RESTABLECIDO": "Servicio restablecido",
-    "SIN_INCIDENTE": "Sin incidentes",
+    "SIN_INCIDENTE": "Sin incidencias",
 }
 _ZONE = re.compile(r"^[A-Za-z0-9_-]{1,20}$")
 _CALL_TIMEOUT = 10      # segundos por llamada
