@@ -140,6 +140,7 @@ correlacionadoraDeReportes:
         arn: !GetAtt ColaReportes.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
+        maximumBatchingWindow: 3   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         functionResponseType: ReportBatchItemFailures
 
 correlacionadoraDeAnomalias:
@@ -151,6 +152,7 @@ correlacionadoraDeAnomalias:
         arn: !GetAtt ColaAnomalias.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
+        maximumBatchingWindow: 5   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         functionResponseType: ReportBatchItemFailures
 
 verificadoraDeEvidencias:
@@ -178,6 +180,7 @@ enrutadoraDeOutbox:
         type: dynamodb
         arn: !GetAtt OutboxTable.StreamArn
         batchSize: 10
+        maximumBatchingWindow: 2   # agrupa eventos del Outbox: menos invocaciones simultáneas
         startingPosition: LATEST
         maximumRetryAttempts: 5
         bisectBatchOnFunctionError: true
@@ -197,6 +200,7 @@ notificadoraDeClientes:
         arn: !GetAtt ColaNotificaciones.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
+        maximumBatchingWindow: 10   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         functionResponseType: ReportBatchItemFailures
 
 # --- Otras nubes (GCP con flags.external = true, Azure con flags.azure = true) ---
@@ -222,6 +226,7 @@ publicadoraHaciaAzure:
         arn: !GetAtt ColaAzure.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
+        maximumBatchingWindow: 10   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         enabled: ${self:custom.flags.azure}
         functionResponseType: ReportBatchItemFailures
 

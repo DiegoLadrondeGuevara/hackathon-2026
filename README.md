@@ -97,7 +97,7 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 |---|---|
 | `scripts/smoke.py` | Login, crear reporte (con idempotencia), listar, consultar e incidente colectivo con 10 clientes. |
 | `scripts/scenario.py` | `activar --antena A004=0 --minutos 10`, `ver`, `limpiar`: fuerza fallas en antenas. A004 pertenece a Z02. Cada antena necesita 5 lecturas normales seguidas para cerrar su episodio. |
-| `scripts/load_test.py` | `--zona Z05 -n 30 --hilos 2`: N reportes en paralelo (máximo 4 hilos), con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
+| `scripts/load_test.py` | `--zona Z05 -n 30`: N reportes (1 hilo por defecto, máximo 4), con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
 | `scripts/seed.py` | Datos de demo, idempotente. `--force` reescribe perfiles. |
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
 
@@ -187,7 +187,8 @@ Usa los parámetros SSM `grafana/otlp_endpoint`, `grafana/instance_id` y `grafan
 
 ## Límites del laboratorio (AWS Academy)
 
-- Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta: cada cola limita su consumidor a 2 invocaciones simultáneas y `load_test.py` admite como máximo 4 hilos.
+- Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta. Cada cola limita su consumidor a 2 invocaciones simultáneas y agrupa mensajes en ventanas de 2 a 10 s para hacer menos invocaciones; `load_test.py` usa 1 hilo por defecto (máximo 4). Antes de una prueba de carga conviene poner `generator: false`.
+- El SMS real no es posible en esta cuenta: Academy deniega las acciones de SMS (`sms-voice:*`) y no deja verificar números de destino, así que `smsMode` queda en `SIMULATED`.
 - Solo se pueden usar los servicios que lista el laboratorio. Amplify, CloudFront y SES no están en esa lista.
 - Si se excede el presupuesto la cuenta se deshabilita: pon `generator: false` cuando no se esté probando.
 
