@@ -174,7 +174,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaReportesDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   ColaAnomaliasDlq:
     Type: AWS::SQS::Queue
     Properties:
@@ -187,7 +187,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaAnomaliasDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   ColaMetricasDlq:
     Type: AWS::SQS::Queue
     Properties:
@@ -200,7 +200,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaMetricasDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   ColaNotificacionesDlq:
     Type: AWS::SQS::Queue
     Properties:
@@ -213,7 +213,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaNotificacionesDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   ColaGcpDlq:
     Type: AWS::SQS::Queue
     Properties:
@@ -226,7 +226,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaGcpDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   ColaAzureDlq:
     Type: AWS::SQS::Queue
     Properties:
@@ -239,7 +239,7 @@ Resources:
       VisibilityTimeout: 180
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ColaAzureDlq.Arn
-        maxReceiveCount: 5
+        maxReceiveCount: 3
   OutboxStreamDlq:
     Type: AWS::SQS::Queue
     Properties:
