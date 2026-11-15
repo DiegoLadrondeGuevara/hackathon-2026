@@ -139,8 +139,8 @@ def test_top_antenas_y_recurrentes(aws):
 
 def test_recurrencia_usa_siete_dias_aunque_days_sea_menor(aws):
     _zonas()
-    for d in (1, 2, 3):
-        _episodio("A004", "Z02", at=_hace(days=d))
+    for horas in (24, 60, 72):  # el corte de days=2 es a las 48 h: ninguno cae justo en el borde
+        _episodio("A004", "Z02", at=_hace(hours=horas))
     _, body = _get(days="2")
     assert body["top_antenas"] == [{"antenna_id": "A004", "zone_id": "Z02", "episodes": 1}]
     assert body["recurrentes"] == [{"antenna_id": "A004", "zone_id": "Z02", "episodes_7d": 3}]
