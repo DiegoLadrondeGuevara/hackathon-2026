@@ -87,7 +87,7 @@ Se editan y se vuelve a desplegar.
 | `generator` | `true` | `false` pausa el simulador de antenas y ahorra créditos. |
 | `grafana` | `true` | `false` deja de enviar métricas a Grafana Cloud (cada 5 minutos). |
 | `opsEmail` | correo | Suscripción de las alertas internas del equipo. Vacío = sin suscripción. |
-| `pitr` | `false` | Recuperación punto en el tiempo en DynamoDB, si la cuenta lo permite. |
+| `pitr` | `true` | Recuperación punto en el tiempo en DynamoDB (35 días de retención). |
 
 Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), sin llamar a SES ni a SNS.
 

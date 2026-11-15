@@ -6,4 +6,4 @@ smsMode: SIMULATED   # SNS cuando AWS Academy permita enviar SMS
 generator: true   # false para pausar el simulador de antenas y ahorrar créditos
 grafana: true       # false para dejar de enviar métricas a Grafana Cloud (cada 5 minutos)
 opsEmail: 'rodricar9942@gmail.com'         # correo del equipo para las alertas internas (SNS); vacío = sin suscripción
-pitr: false          # true si AWS Academy permite recuperación punto en el tiempo en DynamoDB
+pitr: true           # true si AWS Academy permite recuperación punto en el tiempo en DynamoDB
