@@ -55,7 +55,17 @@ Usa las regiones que `az functionapp list-flexconsumption-locations` y Static We
 
 ## Publicar API y portal
 
-Desde `azure/api`:
+Desde Cloud Shell **Bash**, en el clon del repositorio y con la Function ya creada, se puede publicar Python sin instalar Core Tools. El ZIP debe tener `host.json` y `function_app.py` en su raíz; `--build-remote true` instala las dependencias en Linux:
+
+```bash
+cd ~/hackathon-azure/azure/api
+FUNCTION_APP=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.functionAppName.value' --output tsv)
+zip -j /tmp/red-telecorp-estado-api.zip function_app.py status_store.py host.json requirements.txt
+az functionapp deployment source config-zip --resource-group rg-red-telecorp-estado-dev --name "$FUNCTION_APP" --src /tmp/red-telecorp-estado-api.zip --build-remote true
+curl -i "https://$FUNCTION_APP.azurewebsites.net/api/estado"
+```
+
+El `GET` inicial debe responder `200` y `{"zones":[]}`. Desde `azure/api` en Windows, la alternativa con Core Tools es:
 
 ```powershell
 func azure functionapp publish <functionAppName>
