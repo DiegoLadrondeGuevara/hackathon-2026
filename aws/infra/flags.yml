@@ -1,5 +1,6 @@
 # Interruptores del despliegue. Se editan aquí y se vuelve a desplegar.
-external: false      # true cuando GCP y Azure estén listos (activa reglas y consumidores ColaGCP/ColaAzure)
+external: true      # true cuando GCP esté listo (activa la regla y el consumidor de ColaGCP)
+azure: false        # true cuando Azure esté listo (activa la regla y el consumidor de ColaAzure)
 emailMode: SIMULATED # SES cuando haya correos verificados en SES
 smsMode: SIMULATED   # SNS cuando AWS Academy permita enviar SMS
 generator: true   # false para pausar el simulador de antenas y ahorrar créditos

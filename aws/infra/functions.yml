@@ -195,7 +195,7 @@ notificadoraDeClientes:
         batchSize: 10
         functionResponseType: ReportBatchItemFailures
 
-# --- Otras nubes (activas con flags.external = true) ---
+# --- Otras nubes (GCP con flags.external = true, Azure con flags.azure = true) ---
 publicadoraHaciaGcp:
   name: ${self:custom.prefix}-PublicadoraHaciaGCP
   handler: src/handlers/publicadora_hacia_gcp.handler
@@ -215,5 +215,5 @@ publicadoraHaciaAzure:
     - sqs:
         arn: !GetAtt ColaAzure.Arn
         batchSize: 10
-        enabled: ${self:custom.flags.external}
+        enabled: ${self:custom.flags.azure}
         functionResponseType: ReportBatchItemFailures
