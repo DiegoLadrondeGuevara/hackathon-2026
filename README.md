@@ -30,6 +30,7 @@ Los eventos nunca se publican directo: se escriben en la tabla `Outbox` dentro d
 | `scripts/` | Parámetros SSM, datos de demo, prueba de humo, escenarios y prueba de carga. |
 | `gcp/` | Cloud Run (`/ingest`, `/suggest`), BigQuery y Gemini, con Terraform. |
 | `azure/` | Reservada para la página de estado (Functions y Static Web Apps). |
+| `frontend/cliente/` | Portal React de clientes; desarrollo local y configuración de Amplify en [su README](frontend/cliente/README.md). |
 | `arquitectura/` | Diagramas de la solución. |
 
 ## Requisitos
@@ -101,6 +102,10 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
 
 Operador de demo: `OP001`. Clientes de demo: `70000001` a `70000020`.
+
+## Portal de clientes
+
+La primera versión en [`frontend/cliente/`](frontend/cliente/README.md) incluye acceso, inicio, creación y consulta de reportes, historial y estado público por zona. Compila localmente y se probó en navegador con una cuenta ficticia: login, zonas, lista y detalle de reportes e incidencias respondieron desde el API de `dev`. **Falta** publicar en Amplify y probar allí la creación de un reporte, la paginación y el vencimiento de sesión. El portal de operadores continúa pendiente.
 
 ## API (API Gateway HTTP API)
 
