@@ -161,9 +161,9 @@ El equipo de AWS necesita ahora:
 
 El catálogo actual de AWS consta de 12 zonas en `scripts/seed.py`. Para cerrar la integración, el equipo debe verificar el flujo `ColaAzure → PublicadoraHaciaAzure → PUT → EstadoZonas → GET → portal` con varios incidentes simultáneos en una misma zona y probar reintentos/DLQ ante un fallo de Azure.
 
-Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana es una integración adicional pendiente; solo debe transmitir métricas sin PII.
+Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana está activa y solo transmite métricas sin PII.
 
-## Grafana Cloud: exportador preparado, despliegue pendiente
+## Grafana Cloud: exportación verificada
 
 El equipo facilitó estos datos **no secretos** para la futura exportación desde Azure:
 
@@ -193,4 +193,27 @@ Usa el token completo de Grafana que el equipo ya entregó. Pégalo únicamente 
 3. En Azure Portal abre la Function App `red-telecorp-estado-api-slx33vbj` → **Settings → Environment variables → App settings**. Agrega `GRAFANA_OTLP_ENDPOINT` con el endpoint base de la tabla, `GRAFANA_INSTANCE_ID` con `1925059` y `GRAFANA_TOKEN` con el **token completo que ya tienes**. Guarda los cambios. Si falta uno de los tres, el exportador queda desactivado y la API sigue funcionando.
 4. Invoca `GET https://red-telecorp-estado-api-slx33vbj.azurewebsites.net/api/estado` y busca las métricas `redtelecorp.azure.*` en Grafana Explore. Verifica la recepción y el panel. El token no debe aparecer en logs ni capturas.
 
-`main.bicep` declara actualmente la lista de `appSettings`; si vuelves a desplegar la infraestructura, comprueba si los tres ajustes de Grafana siguen presentes y vuelve a introducirlos desde el portal si fueron reemplazados. La exportación Azure todavía **no está desplegada ni verificada contra Grafana** en esta rama: las pruebas locales usan un receptor simulado.
+`main.bicep` declara actualmente la lista de `appSettings`; si vuelves a desplegar la infraestructura, comprueba si los tres ajustes de Grafana siguen presentes y vuelve a introducirlos desde el portal si fueron reemplazados.
+
+### Diagnóstico del 15 de noviembre de 2026
+
+- El repositorio contiene `observability.py` y `function_app.py` lo llama al responder `GET /api/estado` y `PUT /api/estado/{zone_id}`.
+- `GET /api/estado` de la Function App desplegada respondió HTTP 200. **Esto no confirma la exportación**: si falta cualquiera de las tres variables, el código omite el envío sin alterar la respuesta.
+- Un envío OTLP de prueba desde el equipo de desarrollo, usando este exportador, el endpoint y las credenciales entregadas, recibió HTTP 200 de Grafana. Esa prueba confirma la compatibilidad del destino y la credencial, **pero no prueba que Azure haya enviado métricas**.
+- Cloud Shell confirmó que los despliegues `0273f553-0cab-4a7b-87a7-dd8f4450e3b9` (ZIP que incluía `observability.py`) y `dd6845c8-f41c-4c0e-9d23-c251aca02409` tienen estado `4`, que Kudu define como éxito. La desconexión ocurrió después de que el despliegue terminara; aún falta confirmar el envío desde Azure.
+- Cloud Shell confirmó que `GRAFANA_OTLP_ENDPOINT`, `GRAFANA_INSTANCE_ID` y `GRAFANA_TOKEN` **faltaban** en la Function App. Esta fue la causa comprobada de que no salieran métricas hasta ese momento. Los tres ajustes se añadieron posteriormente y Cloud Shell confirmó su presencia sin mostrar los valores. También falta `APPLICATIONINSIGHTS_CONNECTION_STRING`, por lo que no hay registros de ejecución persistentes para revisar fallos históricos.
+- Tras configurar los ajustes, `GET /api/estado` respondió HTTP 200 desde Cloud Shell y de nuevo a las 20:34:30 UTC desde un cliente externo. El responsable de Grafana compartió una captura de Explore a las 15:35:07 hora de Lima, posterior a esa solicitud, con `service_name=red-telecorp-azure` y las cuatro series `redtelecorp_azure_requests_total`, `redtelecorp_azure_latency_ms_milliseconds`, `redtelecorp_azure_zones_stale_ratio` y `redtelecorp_azure_sync_age_max_seconds`. Esto confirma la recepción de métricas Azure → Grafana. El valor `4` de la tabla depende de la consulta mostrada y no se interpreta aquí como cuatro solicitudes o cuatro zonas atrasadas.
+
+En Cloud Shell, comprueba presencia de ajustes sin imprimir sus valores ni el token:
+
+```bash
+RG=rg-red-telecorp-estado-dev
+APP=red-telecorp-estado-api-slx33vbj
+for K in GRAFANA_OTLP_ENDPOINT GRAFANA_INSTANCE_ID GRAFANA_TOKEN APPLICATIONINSIGHTS_CONNECTION_STRING; do
+  V=$(az functionapp config appsettings list -g "$RG" -n "$APP" --query "[?name=='$K'].value | [0]" -o tsv)
+  if [ -n "$V" ]; then echo "$K: CONFIGURADA"; else echo "$K: FALTA"; fi
+done
+az functionapp log deployment list -g "$RG" -n "$APP" --query '[0:3].[id,status,log_time]' -o table
+```
+
+Los tres ajustes ya están presentes y la recepción quedó verificada. Para volver a comprobarla, ejecuta `GET /api/estado` y busca en Grafana Explore una muestra posterior bajo `redtelecorp_azure_requests_total` o el prefijo `redtelecorp_azure`. Si deja de aparecer una muestra nueva, comprueba primero los tres ajustes y el paquete activo; sin Application Insights no estarán disponibles los registros históricos persistentes. El código emite `redtelecorp.azure.requests`, `redtelecorp.azure.latency_ms`, `redtelecorp.azure.zones_stale` y `redtelecorp.azure.sync_age_max_seconds`; Grafana convierte puntos y sufijos a nombres Prometheus con guiones bajos.
