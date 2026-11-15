@@ -26,7 +26,23 @@ Primero intenta [Azure for Students](https://learn.microsoft.com/azure/education
 
 ## Validar y crear recursos
 
-Desde la raíz del repositorio, con Azure CLI autenticado:
+En Cloud Shell **Bash efímero**, la rama de Azure se puede obtener y revisar así. El grupo de recursos no genera cargos por sí mismo; `what-if` previsualiza cambios sin desplegar recursos. La consulta de salida muestra solo nombres y tipos de cambio, no los ajustes de la Function que incluyen una conexión de Storage.
+
+```bash
+git clone --depth 1 --branch codex/azure-t16b https://github.com/DiegoLadrondeGuevara/hackathon-2026.git hackathon-azure
+cd hackathon-azure
+az bicep build --file azure/infra/main.bicep
+az group create --name rg-red-telecorp-estado-dev --location eastus2 --output table
+az deployment group what-if --resource-group rg-red-telecorp-estado-dev --template-file azure/infra/main.bicep --parameters environmentName=dev location=eastus2 staticLocation=centralus --no-pretty-print --query "changes[].{tipo:changeType,recurso:resourceId}" --output table
+```
+
+Si el resultado y las cuotas son correctos, el comando de despliegue es:
+
+```bash
+az deployment group create --resource-group rg-red-telecorp-estado-dev --template-file azure/infra/main.bicep --parameters environmentName=dev location=eastus2 staticLocation=centralus --query "properties.outputs" --output json
+```
+
+Alternativamente, desde la raíz del repositorio en Windows, con Azure CLI autenticado:
 
 ```powershell
 az bicep build --file azure/infra/main.bicep
