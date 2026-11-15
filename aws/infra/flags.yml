@@ -2,6 +2,6 @@
 external: false      # true cuando GCP y Azure estén listos (activa reglas y consumidores ColaGCP/ColaAzure)
 emailMode: SIMULATED # SES cuando haya correos verificados en SES
 smsMode: SIMULATED   # SNS cuando AWS Academy permita enviar SMS
-generator: false     # false para pausar el simulador de antenas y ahorrar créditos
+generator: true   # false para pausar el simulador de antenas y ahorrar créditos
 opsEmail: 'rodricar9942@gmail.com'         # correo del equipo para las alertas internas (SNS); vacío = sin suscripción
 pitr: false          # true si AWS Academy permite recuperación punto en el tiempo en DynamoDB
