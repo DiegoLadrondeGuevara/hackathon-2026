@@ -204,6 +204,7 @@ publicadoraHaciaGcp:
     - sqs:
         arn: !GetAtt ColaGcp.Arn
         batchSize: 10
+        maximumBatchingWindow: 10   # acumula eventos hasta 10 s: menos llamadas simultáneas a /ingest
         enabled: ${self:custom.flags.external}
         functionResponseType: ReportBatchItemFailures
 
