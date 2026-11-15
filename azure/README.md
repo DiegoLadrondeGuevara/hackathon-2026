@@ -83,7 +83,7 @@ mkdir -p azure/web/dist
 cp azure/web/index.html azure/web/staticwebapp.config.json azure/web/dist/
 printf 'window.RED_TELECORP_API_BASE_URL = "https://%s.azurewebsites.net";\n' "$FUNCTION_APP" > azure/web/dist/config.js
 export SWA_CLI_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group rg-red-telecorp-estado-dev --query 'properties.apiKey' --output tsv)
-npx --yes @azure/static-web-apps-cli deploy azure/web/dist --env production --yes
+npx --yes @azure/static-web-apps-cli deploy azure/web/dist --env production
 unset SWA_CLI_DEPLOYMENT_TOKEN
 ```
 
