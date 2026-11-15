@@ -1,7 +1,7 @@
-# Google Cloud — infraestructura
+# GCP Terraform
 
-Aquí irán los archivos reproducibles de infraestructura **GCP**. Ver [PENDIENTES.md](../../PENDIENTES.md), [arquitectura-solucion-v4.md](../../arquitectura-solucion-v4.md) y [decision-ia.md](../../decision-ia.md).
-
-Recursos previstos: Cloud Run function con mínimo de instancias en cero, BigQuery para eventos/agregados, almacén de secretos y permisos mínimos. La función usará Gemini Developer API Free para sugerencias de investigación con datos sintéticos o depurados; su clave no debe estar en el frontend ni en Git. **Vertex AI no se presupone gratuito**.
-
-Antes de codificar la plantilla, confirmar proyecto, región, facturación/cuotas y llamada de prueba a Gemini API. Los eventos de AWS llegan firmados por HTTPS y no contienen datos personales.
+See [../README.md](../README.md) for configuration, local validation, approved deployment and cleanup.
+Google provider is pinned and locked. Secret versions are never managed by Terraform.
+Runtime has query-job permission and dataset-scoped get/getData/updateData; build-source access is bucket-scoped.
+`ingest_guard` initialization must finish before Cloud Run receives events.
+Do not apply `deploy_service=false` to an existing deployment. Preserve the private state and deployment settings.

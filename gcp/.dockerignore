@@ -1,0 +1,5 @@
+**
+!analisis/
+!analisis/*.py
+!analisis/requirements.txt
+!Dockerfile
