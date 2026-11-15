@@ -1,9 +1,16 @@
-# Azure — infraestructura
+# Infraestructura Azure
 
-Aquí irán los archivos reproducibles de infraestructura **Azure**. Ver [PENDIENTES.md](../../PENDIENTES.md), [arquitectura-solucion-v4.md](../../arquitectura-solucion-v4.md) y [decision-ia.md](../../decision-ia.md).
+`main.bicep` crea, dentro de un grupo de recursos existente:
 
-Recursos previstos: Azure Functions en **Flex Consumption** con `always ready = 0`, Storage Account/Table Storage y un almacén de secretos para verificar los eventos HTTPS de AWS. La tabla publica solo estado por zona y hora de última sincronización, sin datos personales.
+| Nombre lógico | Servicio | Función |
+| --- | --- | --- |
+| `red-telecorp-estado-api-*` | Azure Functions, Flex Consumption `FC1` | API Python 3.11, escala a cero |
+| `red-telecorp-estado-flex-*` | App Service Plan Flex | Hospedaje de la Function |
+| `sttelecorp*` | StorageV2 `Standard_LRS` | Almacenamiento de Functions y Table Storage |
+| `EstadoZonas` | Azure Table Storage | Proyección pública por zona |
+| `app-package` | Blob container privado | Paquetes de la Function |
+| `red-telecorp-estado-publico-*` | Azure Static Web Apps Free | Portal público |
 
-La propuesta v3 añade `red-telecorp-estado-publico` (**Azure Static Web Apps**) como página independiente que consulta la Function `red-telecorp-estado-api` y la tabla `EstadoZonas`. Si AWS deja de enviar eventos, la página conserva el último estado y señala que `last_synced_at` está atrasado. Se debe probar el plan Free en la suscripción del equipo y el CORS de la Function antes de considerarlo viable.
+La URL de la Static Web App se configura como único origen CORS de la Function. El `PUT` sigue protegido por una clave de Function, que se administra en Azure y **no** aparece como salida de Bicep. Se usan claves de la cuenta de Storage en los ajustes de la Function para simplificar el laboratorio; no se exportan a archivos ni al repositorio. Una versión posterior podría migrar a identidades administradas con RBAC.
 
-Azure AI Language F0 es una alternativa opcional de IA. Azure Communication Services Email solo se evalúa si AWS no permite el canal de correo/SMS y se puede habilitar un dominio. Primero confirmar que la suscripción y la región del equipo permiten crear Functions y Storage.
+El template no despliega código: primero crea recursos, luego se publica `azure/api` con Azure Functions Core Tools y `azure/web/dist` con Static Web Apps CLI. Ver [guía Azure](../README.md).

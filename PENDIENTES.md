@@ -64,10 +64,12 @@ Estas casillas son **trabajo propuesto**, no funcionalidad desplegada. El [anál
 
 ## Azure — estado público y alternativa de IA
 
-- [ ] Confirmar suscripción, región, cuota y acceso a Azure Functions Flex Consumption, Table Storage y secret store. **Hecho cuando:** POST/GET de prueba funcionan en la suscripción del equipo.
-- [ ] Codificar infraestructura en [`azure/infra/`](azure/infra/README.md): Function con `always ready = 0`, Storage Account/Table y secreto de firma. **Hecho cuando:** otro integrante puede reproducir los recursos.
-- [ ] Implementar recepción HTTPS firmada de `incident.updated` desde AWS, idempotencia por `event_id`/revisión y proyección sin PII. **Hecho cuando:** la tabla refleja el último estado y un reenvío viejo no lo revierte.
-- [ ] Publicar `GET /zones/{zone_id}/status` con `last_synced_at` y CORS apropiado. **Hecho cuando:** se puede consultar desde navegador incluso si el API principal AWS no responde, y se ve si el dato está atrasado.
+- [x] Preparar [`azure/infra/`](azure/infra/README.md) en Bicep: Function Flex Consumption sin `alwaysReady`, Storage Account/Table `EstadoZonas` y Static Web App Free. **Verificado:** Bicep compila localmente; falta probar el despliegue en una suscripción real.
+- [x] Implementar `PUT /api/estado/{zone_id}` con autorización Function, validación de texto público, idempotencia por `updated_at` y protección ETag; `GET /api/estado` anónimo y ordenado. **Verificado:** pruebas unitarias con tabla simulada; falta prueba HTTP en Azure.
+- [x] Preparar portal público que consulta cada 30 segundos y avisa sobre `last_synced_at` atrasado. **Verificado:** archivos y configuración de despliegue preparados; falta publicar y probar CORS.
+- [ ] Confirmar elegibilidad de Azure for Students con correo UTEC, suscripción, región, cuotas y acceso a Flex Consumption, Table Storage y Static Web Apps Free. **Hecho cuando:** `what-if` y despliegue se ejecutan en la suscripción del equipo.
+- [ ] Publicar Function y portal, probar `PUT` con clave y `GET` anónimo, el orden de eventos y la continuidad del portal durante una caída de AWS. **Hecho cuando:** una actualización real aparece en la tabla y en la página.
+- [ ] Entregar `functionBaseUrl` y clave de Function a AWS por canal privado; conectar `PublicadoraHaciaAzure` y probar el flujo de punta a punta. **Hecho cuando:** un `incident.updated` actualiza la zona correcta sin datos personales.
 - [ ] **Opcional:** probar Azure AI Language F0 para resumen/frases clave si Gemini Free no está disponible. **Hecho cuando:** una salida útil se ve en operaciones, sin exceder el cupo compartido de 5000 records/mes.
 - [ ] **Opcional si AWS mensajería está bloqueada:** evaluar Azure Communication Services Email y dominio habilitado. **Hecho cuando:** llega un correo real de prueba; registrar costo/permisos.
 

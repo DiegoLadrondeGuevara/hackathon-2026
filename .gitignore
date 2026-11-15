@@ -1,5 +1,6 @@
 .env
 .env.*
+!azure/.env.example
 *.pem
 __pycache__/
 .pytest_cache/
@@ -7,4 +8,5 @@ __pycache__/
 .venv/
 .serverless/
 node_modules/
+/chatgpt/
 .claude/settings.local.json
