@@ -134,4 +134,19 @@ El equipo de AWS necesita ahora:
 
 Del equipo AWS necesitamos también la lista definitiva de `zone_id` del catálogo y una carga de prueba sin datos personales. Cuando su Lambda esté conectada, verificaremos el flujo `ColaAzure → PublicadoraHaciaAzure → PUT → EstadoZonas → GET → portal` y los reintentos/DLQ ante un error de Azure.
 
-Azure no requiere hoy ninguna credencial ni URL de GCP. Si el equipo de Grafana quiere recibir telemetría de Azure, debe acordar con nosotros qué métricas observar y entregar por canal privado el endpoint OTLP y su token; esa exportación es una integración adicional y todavía no está implementada. Solo se comparten con Grafana métricas sin PII.
+Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana es una integración adicional pendiente; solo debe transmitir métricas sin PII.
+
+## Grafana Cloud: datos recibidos, integración pendiente
+
+El equipo facilitó estos datos **no secretos** para la futura exportación desde Azure:
+
+| Ajuste | Valor |
+| --- | --- |
+| Endpoint OTLP base | `https://otlp-gateway-prod-us-east-6.grafana.net/otlp` |
+| Endpoint de métricas OTLP/HTTP | `https://otlp-gateway-prod-us-east-6.grafana.net/otlp/v1/metrics` |
+| Instance ID | `1925059` |
+| Protocolo acordado | OTLP/HTTP JSON, adecuado para el volumen bajo de la demo |
+
+El token compartido está **incompleto** y no permite autenticar. Pide al responsable de Grafana un token de acceso con permiso `metrics:write` para esta instancia. No lo envíes por chat, no lo pegues en `azure/.env`, `local.settings.json`, Bicep ni Git. Al implementar el exportador, el responsable de Azure puede introducir el valor completo directamente en **Function App → Settings → Environment variables → App settings** con un nombre como `GRAFANA_TOKEN`; Azure cifra esos ajustes. La autenticación OTLP usa el Instance ID como usuario y el token como contraseña. [Grafana documenta la ruta `/v1/metrics` y la configuración OTLP](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/); [Azure documenta los ajustes de Function App](https://learn.microsoft.com/en-us/azure/azure-functions/functions-how-to-use-azure-function-app-settings).
+
+Todavía no hay código Azure que emita métricas ni prueba de recepción en Grafana. Antes de introducir el token, definir métricas sin PII (por ejemplo, peticiones, errores y antigüedad de la última sincronización) y actualizar la infraestructura: `main.bicep` declara actualmente la lista de `appSettings`, por lo que una nueva ejecución de Bicep podría reemplazar un ajuste agregado manualmente. Grafana sigue siendo trabajo pendiente y no condiciona el funcionamiento actual de `GET/PUT /api/estado` ni del portal público.
