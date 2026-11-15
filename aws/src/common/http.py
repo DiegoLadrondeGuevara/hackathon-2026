@@ -9,6 +9,9 @@ from . import jsonutil
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
+DEFAULT_LIMIT = 20
+MAX_LIMIT = 100
+
 STATUS = {
     "VALIDATION": 400,
     "UNAUTHORIZED": 401,
@@ -81,6 +84,56 @@ def require_role(event, *roles) -> dict:
     if c["role"] not in roles:
         raise ApiError("FORBIDDEN", "No tienes permiso para esta acción")
     return c
+
+
+def query_param(event, name: str):
+    return (event.get("queryStringParameters") or {}).get(name)
+
+
+def path_param(event, name: str) -> str:
+    value = (event.get("pathParameters") or {}).get(name)
+    if not value:
+        raise ApiError("VALIDATION", f"Falta el parámetro {name}")
+    return value
+
+
+def page_limit(event) -> int:
+    """`?limit=`: por defecto 20, máximo 100 (contracts/api.md)."""
+    raw = query_param(event, "limit")
+    if raw is None or raw == "":
+        return DEFAULT_LIMIT
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ApiError("VALIDATION", "El parámetro limit debe ser un entero") from exc
+    if value < 1:
+        raise ApiError("VALIDATION", "El parámetro limit debe ser mayor que cero")
+    return min(value, MAX_LIMIT)
+
+
+def decode_cursor(event) -> dict | None:
+    """`?cursor=` -> ExclusiveStartKey (o None). El cursor es base64 del LastEvaluatedKey."""
+    raw = query_param(event, "cursor")
+    if not raw:
+        return None
+    try:
+        key = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+    except ValueError as exc:  # incluye binascii.Error y UnicodeDecodeError
+        raise ApiError("VALIDATION", "El cursor no es válido") from exc
+    if not isinstance(key, dict) or not key or not all(isinstance(v, str) for v in key.values()):
+        raise ApiError("VALIDATION", "El cursor no es válido")
+    return key
+
+
+def encode_cursor(last_key: dict | None) -> str | None:
+    if not last_key:
+        return None
+    return base64.urlsafe_b64encode(jsonutil.dumps(last_key).encode("utf-8")).decode("ascii")
+
+
+def public_item(item: dict) -> dict:
+    """Ítem para la API: sin claves internas de la tabla ni atributos de índices."""
+    return {k: v for k, v in item.items() if k not in ("pk", "sk") and not k.startswith("gsi")}
 
 
 def header(event, name: str):
