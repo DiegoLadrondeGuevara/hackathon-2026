@@ -17,7 +17,7 @@ from flask import g, jsonify, make_response
 log = logging.getLogger(__name__)
 MAX_BODY = 96 * 1024
 SUGGEST_SECONDS = 3.2  # Includes BigQuery + Gemini; leaves room for AWS/HTTP overhead.
-INGEST_SECONDS = 8
+INGEST_SECONDS = 15
 
 
 def _body(request):

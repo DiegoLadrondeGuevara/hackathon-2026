@@ -149,7 +149,7 @@ resource "google_cloud_run_v2_service" "api" {
   deletion_protection = var.protect_data
   template {
     service_account                  = google_service_account.runtime.email
-    timeout                          = "15s"
+    timeout                          = "25s"
     max_instance_request_concurrency = 8
     scaling {
       min_instance_count = 0
