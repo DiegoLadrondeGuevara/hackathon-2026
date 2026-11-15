@@ -1,0 +1,4 @@
+-r analisis/requirements.txt
+pytest>=8,<10
+ruff>=0.5
+boto3>=1.34
