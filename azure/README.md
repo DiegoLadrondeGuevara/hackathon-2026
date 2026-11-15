@@ -136,7 +136,7 @@ Del equipo AWS necesitamos también la lista definitiva de `zone_id` del catálo
 
 Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana es una integración adicional pendiente; solo debe transmitir métricas sin PII.
 
-## Grafana Cloud: exportador preparado, despliegue pendiente
+## Grafana Cloud: paquete enviado, recepción pendiente
 
 El equipo facilitó estos datos **no secretos** para la futura exportación desde Azure:
 
@@ -161,9 +161,9 @@ Usa el token completo de Grafana que el equipo ya entregó. Pégalo únicamente 
 
 ### Activación en Azure
 
-1. Reutiliza el clon existente de Cloud Shell en `~/hackathon-azure`; **no hagas otro `git clone`**. Ejecuta `git status --short` y, si hay cambios propios en archivos versionados, consérvalos antes de cambiar de rama. Luego ejecuta `git fetch origin` y `git switch --track origin/codex/azure-grafana` (o `git switch codex/azure-grafana && git pull --ff-only` si la rama local ya existe).
+1. En Cloud Shell, comprueba si existe `~/hackathon-azure`. Si existe, entra, revisa `git status --short`, conserva cualquier cambio propio y ejecuta `git fetch origin` seguido de `git switch --track origin/codex/azure-grafana` (o `git switch codex/azure-grafana && git pull --ff-only` si la rama local ya existe). Si la sesión efímera borró la carpeta, vuelve a clonar directamente la rama `codex/azure-grafana` en `~/hackathon-azure`; esto recupera código, no recrea recursos de Azure.
 2. Publica únicamente el ZIP actualizado de `azure/api`, incluyendo `observability.py`, con `az functionapp deployment source config-zip`; los comandos están en **Publicar API y portal** más arriba. No vuelvas a crear los recursos con Bicep ni a publicar la Static Web App.
 3. En Azure Portal abre la Function App `red-telecorp-estado-api-slx33vbj` → **Settings → Environment variables → App settings**. Agrega `GRAFANA_OTLP_ENDPOINT` con el endpoint base de la tabla, `GRAFANA_INSTANCE_ID` con `1925059` y `GRAFANA_TOKEN` con el **token completo que ya tienes**. Guarda los cambios. Si falta uno de los tres, el exportador queda desactivado y la API sigue funcionando.
 4. Invoca `GET https://red-telecorp-estado-api-slx33vbj.azurewebsites.net/api/estado` y busca las métricas `redtelecorp.azure.*` en Grafana Explore. Verifica la recepción y el panel. El token no debe aparecer en logs ni capturas.
 
-`main.bicep` declara actualmente la lista de `appSettings`; si vuelves a desplegar la infraestructura, comprueba si los tres ajustes de Grafana siguen presentes y vuelve a introducirlos desde el portal si fueron reemplazados. La exportación Azure todavía **no está desplegada ni verificada contra Grafana** en esta rama: las pruebas locales usan un receptor simulado.
+`main.bicep` declara actualmente la lista de `appSettings`; si vuelves a desplegar la infraestructura, comprueba si los tres ajustes de Grafana siguen presentes y vuelve a introducirlos desde el portal si fueron reemplazados. El 15/11/2026 se envió el ZIP con `observability.py`; el detector mostró una actualización de código completada a las 17:27 UTC y `GET /api/estado` devolvió HTTP 200. **Esperamos al responsable de Grafana para confirmar la recepción de métricas**; el HTTP 200 no demuestra el envío OTLP. Las pruebas locales usan un receptor simulado.
