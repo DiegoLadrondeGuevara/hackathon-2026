@@ -13,7 +13,7 @@ Respuestas JSON. Fechas ISO-8601 UTC. Listas paginadas: `?limit=` (por defecto 2
 | GET /reportes | ListarMisReportes | CUSTOMER: los propios. OPERATOR: `?zone_id=` obligatorio |
 | GET /reportes/{report_id} | ObtenerReporte | dueño u OPERATOR |
 | PATCH /reportes/{report_id}/estado | CambiarEstadoReporte | OPERATOR |
-| GET /incidentes | ListarIncidentesZona | `?zone_id=` cualquiera (vista pública para CUSTOMER); `?status=` solo OPERATOR (cola, por prioridad) |
+| GET /incidentes | ListarIncidentesZona | `?zone_id=` cualquiera (vista pública para CUSTOMER, sin incidentes CERRADO); `?status=` solo OPERATOR (cola, por prioridad) |
 | GET /incidentes/{incident_id} | ListarIncidentesZona | OPERATOR |
 | PATCH /incidentes/{incident_id}/estado | CambiarEstadoIncidente | OPERATOR |
 | GET /incidentes/{incident_id}/sugerencia | ObtenerSugerenciaIA | OPERATOR |
@@ -31,6 +31,7 @@ Respuestas JSON. Fechas ISO-8601 UTC. Listas paginadas: `?limit=` (por defecto 2
 **GET /reportes/{id}** → META sin atributos gsi + `history:[{from_status,to_status,actor,reason,at}]`.
 **PATCH …/estado** `{"to_status":"EN_REVISION","reason":"opcional"}` → 200 con el nuevo META.
 **GET /incidentes?zone_id=** → CUSTOMER: `{"items":[{"incident_id","zone_id","service","status","opened_at","updated_at"}]}`. OPERATOR: META completo sin atributos gsi.
+La vista pública (CUSTOMER) excluye los incidentes CERRADO; OPERATOR los sigue viendo. El filtro se aplica después de `limit`: una página pública puede traer menos elementos que `limit`, o ninguno, y aun así devolver `next_cursor`. El cliente debe seguir el cursor hasta que sea `null`.
 **GET /incidentes/{id}** → META + `history` + `links:{reports, users, antennas}` (conteos y listas de antenas).
 **GET /tendencias?days=30** →
 ```json
