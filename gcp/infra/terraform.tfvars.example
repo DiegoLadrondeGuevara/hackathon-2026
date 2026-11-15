@@ -1,0 +1,5 @@
+# Public configuration only. Copy to ignored terraform.tfvars before an approved deployment.
+project_id  = "gen-lang-client-0984590124"
+region      = "us-central1"
+bq_location = "us-central1"
+# deploy.sh persists the built image and enabled secret versions separately.
