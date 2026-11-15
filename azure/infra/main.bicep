@@ -117,8 +117,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       appSettings: [
         { name: 'AzureWebJobsStorage', value: storageConnection }
         { name: 'AZURE_STORAGE_CONNECTION_STRING', value: storageConnection }
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
-        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'TABLE_NAME', value: estadoZonas.name }
       ]
     }
