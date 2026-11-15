@@ -1,0 +1,4 @@
+api/local.settings.json
+web/dist/
+infra/*.json
+infra/*.log

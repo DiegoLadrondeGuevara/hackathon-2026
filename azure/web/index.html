@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102f3b">
+    <meta name="description" content="Consulta la última información publicada sobre el servicio de Red TeleCorp en las zonas de Lima y Callao.">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+    <title>Estado de la red · Red TeleCorp</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="Red TeleCorp, estado de la red">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none"><path d="M6 23v3m5-8v8m5-13v13m5-17v17m5-22v22" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </span>
+          <span class="brand-text"><strong>red<span>telecorp</span></strong><small>ESTADO PÚBLICO DE LA RED</small></span>
+        </a>
+        <span class="header-note"><span class="pulse-dot" aria-hidden="true"></span> Actualización cada 30 segundos</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="shell hero-inner">
+          <div class="hero-copy">
+            <span class="eyebrow"><span></span> INFORMACIÓN PÚBLICA DE SERVICIO</span>
+            <h1>Tu zona, con información clara.</h1>
+            <p>Consulta el último estado publicado de la red en los distritos que atendemos. Si una zona está en revisión, podrás seguir aquí su avance.</p>
+            <span class="hero-caption">Lima y Callao <span aria-hidden="true">·</span> 12 zonas de referencia</span>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+            <div class="orbit-core"><svg viewBox="0 0 48 48" fill="none"><path d="M24 38V19m-8 19h16M19 19a7 7 0 0 1 10 0M13 13a15 15 0 0 1 22 0M8 8a22 22 0 0 1 32 0" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <span class="orbit-point point-one"></span><span class="orbit-point point-two"></span><span class="orbit-point point-three"></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell content">
+        <section class="summary" aria-label="Resumen de estados">
+          <div class="summary-card"><span class="summary-icon attention" aria-hidden="true">!</span><div><small>Con seguimiento</small><strong id="count-attention">—</strong><span>Evaluación, incidencia o restablecimiento</span></div></div>
+          <div class="summary-card"><span class="summary-icon clear" aria-hidden="true">✓</span><div><small>Sin alerta publicada</small><strong id="count-clear">—</strong><span>Según el último evento recibido</span></div></div>
+          <div class="summary-card"><span class="summary-icon pending" aria-hidden="true">↻</span><div><small>Información pendiente</small><strong id="count-pending">—</strong><span>Sin publicación o con datos atrasados</span></div></div>
+        </section>
+
+        <div id="notice" class="notice loading" role="status" aria-live="polite">Consultando las zonas publicadas…</div>
+
+        <section class="zones-section" aria-labelledby="zones-title">
+          <div class="section-heading"><div><span class="eyebrow dark"><span></span> COBERTURA POR DISTRITO</span><h2 id="zones-title">Estado de cada zona</h2><p>Los nombres corresponden al catálogo de zonas de Red TeleCorp.</p></div><div class="checked"><span>Última consulta</span><strong id="last-checked">Pendiente</strong></div></div>
+          <div class="tools"><label class="search-field" for="zone-search"><span class="visually-hidden">Buscar zona o código</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><input id="zone-search" type="search" placeholder="Buscar distrito o código" autocomplete="off"></label><label class="filter-field" for="status-filter"><span class="visually-hidden">Filtrar por estado</span><select id="status-filter"><option value="all">Todas las zonas</option><option value="attention">Con seguimiento</option><option value="pending">Información pendiente</option><option value="clear">Sin alerta publicada</option></select></label><button id="refresh-button" type="button" class="refresh-button">Actualizar ahora</button></div>
+          <p id="result-count" class="result-count"></p>
+          <div id="zones" class="zone-grid"></div>
+        </section>
+
+        <section class="explanation" aria-labelledby="meaning-title">
+          <div><span class="eyebrow dark"><span></span> CÓMO LEER ESTA PÁGINA</span><h2 id="meaning-title">¿Qué significan los estados?</h2><p>Mostramos la última información que AWS envió a Azure para cada zona. La página se consulta de nuevo cada 30 segundos.</p></div>
+          <dl><div><dt><span class="legend-dot evaluating"></span>En evaluación</dt><dd>Estamos comprobando una posible afectación.</dd></div><div><dt><span class="legend-dot confirmed"></span>Incidencia confirmada</dt><dd>El equipo trabaja en una afectación identificada.</dd></div><div><dt><span class="legend-dot restored"></span>Servicio restablecido</dt><dd>El servicio se recuperó y continúa en seguimiento.</dd></div><div><dt><span class="legend-dot clear"></span>Sin alerta publicada</dt><dd>El último evento indica un cierre; no equivale a una garantía de ausencia de otras fallas.</dd></div></dl>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer"><div class="shell"><span>© 2026 Red TeleCorp · Estado público de la red</span><span>Esta vista es orientativa y no reemplaza la atención de reportes individuales.</span></div></footer>
+    <script src="config.js"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
