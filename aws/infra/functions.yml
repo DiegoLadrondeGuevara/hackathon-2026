@@ -180,7 +180,7 @@ enrutadoraDeOutbox:
         type: dynamodb
         arn: !GetAtt OutboxTable.StreamArn
         batchSize: 10
-        maximumBatchingWindow: 2   # agrupa eventos del Outbox: menos invocaciones simultáneas
+        batchWindow: 2   # agrupa eventos del Outbox: menos invocaciones simultáneas (en streams se llama batchWindow)
         startingPosition: LATEST
         maximumRetryAttempts: 5
         bisectBatchOnFunctionError: true
