@@ -1,4 +1,4 @@
-import type { CreateReportBody, Incident, Page, Report, Zone } from './types'
+import type { CreateReportBody, Incident, OperatorIncident, Page, Report, Suggestion, Trends, Zone } from './types'
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://ynyvt8x51k.execute-api.us-east-1.amazonaws.com').replace(/\/$/, '')
 
@@ -15,7 +15,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PATCH'
   token?: string
   body?: unknown
   idempotencyKey?: string
@@ -90,9 +90,35 @@ export const api = {
   },
 }
 
+export const operatorApi = {
+  incidents: (token: string, status: string, zoneId?: string, cursor?: string) => {
+    const query = new URLSearchParams({ status, limit: '20' })
+    if (zoneId) query.set('zone_id', zoneId)
+    if (cursor) query.set('cursor', cursor)
+    return request<Page<OperatorIncident>>(`/incidentes?${query}`, { token })
+  },
+  incident: (token: string, id: string) => request<OperatorIncident>(`/incidentes/${encodeURIComponent(id)}`, { token }),
+  updateIncident: (token: string, id: string, toStatus: string, reason: string) =>
+    request<OperatorIncident>(`/incidentes/${encodeURIComponent(id)}/estado`, {
+      method: 'PATCH', token, body: { to_status: toStatus, reason },
+    }),
+  reports: (token: string, zoneId: string, cursor?: string) => {
+    const query = new URLSearchParams({ zone_id: zoneId, limit: '20' })
+    if (cursor) query.set('cursor', cursor)
+    return request<Page<Report>>(`/reportes?${query}`, { token })
+  },
+  report: (token: string, id: string) => request<Report>(`/reportes/${encodeURIComponent(id)}`, { token }),
+  updateReport: (token: string, id: string, toStatus: string, reason: string) =>
+    request<Report>(`/reportes/${encodeURIComponent(id)}/estado`, {
+      method: 'PATCH', token, body: { to_status: toStatus, reason },
+    }),
+  trends: (token: string, days: 7 | 30) => request<Trends>(`/tendencias?days=${days}`, { token }),
+  suggestion: (token: string, id: string) => request<Suggestion>(`/incidentes/${encodeURIComponent(id)}/sugerencia`, { token }),
+}
+
 export function readableError(error: unknown): { message: string; detail: string } {
   if (!(error instanceof ApiError)) return { message: 'Ocurrió un error inesperado.', detail: 'Vuelve a intentarlo.' }
-  if (error.code === 'ROLE') return { message: error.message, detail: 'Este acceso corresponde al portal de clientes.' }
+  if (error.code === 'ROLE') return { message: error.message, detail: 'Comprueba que tu cuenta tenga acceso a esta sección.' }
   if (error.status === 401 && error.path === '/auth/login') return { message: 'Identificación o contraseña incorrectas.', detail: 'Revisa tus datos e inténtalo de nuevo.' }
   if (error.status === 401) return { message: 'Tu sesión venció o no es válida.', detail: 'Inicia sesión de nuevo.' }
   if (error.status === 403) return { message: 'No tienes permiso para consultar estos datos.', detail: `${error.path} · HTTP 403` }

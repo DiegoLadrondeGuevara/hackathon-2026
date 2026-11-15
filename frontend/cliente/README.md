@@ -1,62 +1,72 @@
-# Portal de clientes · Red TeleCorp
+# Portal de servicio · Red TeleCorp
 
-Primera versión React + TypeScript + Vite del portal autenticado de clientes. Usa la API HTTP de AWS; no guarda datos de prueba ni simula respuestas exitosas. La página pública de Azure se abre mediante un enlace separado.
+Aplicación React + TypeScript + Vite para **clientes y operadores**. Comparte un inicio de sesión; el rol `CUSTOMER` muestra el portal de clientes y `OPERATOR` abre el centro de operaciones. Ambos consultan directamente la API HTTP de AWS. Azure ofrece una página pública independiente. No hay datos simulados en las vistas ni JWT persistidos en el navegador.
 
-## Ejecutar en local
+## Desarrollo local
 
-Requiere Node.js 20.19+ o 22.12+ y npm.
+Requiere Node.js 22.12+ y npm.
 
 ```bash
 cd frontend/cliente
 cp .env.example .env
 npm ci
 npm run dev
+npm run build
 ```
 
-En PowerShell, usa `Copy-Item .env.example .env`. El valor de `VITE_API_BASE_URL` es una URL pública, no una clave. Si no creas `.env`, se usa la URL de `dev` indicada en [`.env.example`](.env.example). Para comprobar la compilación: `npm run build`; el resultado queda en `dist/`.
+En PowerShell, usa `Copy-Item .env.example .env`. El archivo `.env` es opcional: el código ya tiene las URLs públicas de `dev` como respaldo. La compilación sale en `dist/`.
 
-## Funciones y rutas utilizadas
+## Flujos de clientes
 
-| Vista | Método y ruta AWS | Uso |
+| Vista | Ruta AWS | Función |
 | --- | --- | --- |
-| Acceso | `POST /auth/login` | Inicia una sesión `CUSTOMER` con JWT de 15 minutos. El token vive solo en memoria. |
-| Nuevo reporte | `GET /zonas`, `POST /reportes` | Consulta zonas, valida campos y envía `Idempotency-Key` para evitar duplicados en reintentos. |
-| Mis reportes | `GET /reportes?limit=12&cursor=…` | Lista únicamente los reportes del cliente; carga más páginas bajo demanda. |
-| Detalle | `GET /reportes/{report_id}` | Muestra información e historial real de estados. |
-| Estado de zona | `GET /incidentes?zone_id=…&limit=20&cursor=…` | Muestra la vista pública de incidentes y permite seguir el cursor aunque una página esté vacía. |
+| Acceso | `POST /auth/login` | JWT de 15 minutos en memoria. |
+| Nuevo reporte | `GET /zonas`, `POST /reportes` | Envía la solicitud con `Idempotency-Key`; el formulario exige zona, referencia y fecha válida. |
+| Mis reportes | `GET /reportes?limit=12&cursor=…` | Lista solo los propios, con paginación. |
+| Detalle | `GET /reportes/{id}` | Muestra estado e historial. |
+| Estado de zona | `GET /incidentes?zone_id=…&limit=20&cursor=…` | Vista pública del incidente, sin exponer el detalle operacional. |
 
-Los errores de red, CORS, respuesta inválida, permisos y fallo del servidor se muestran en la vista correspondiente con una opción para reintentar cuando aplica. No se interpreta un HTTP 404 de un reporte como prueba de que el endpoint completo falta.
+## Flujos de operadores
 
-## Publicar en Amplify Hosting
+| Vista | Ruta AWS | Función |
+| --- | --- | --- |
+| Bandeja | `GET /incidentes?status=…&zone_id=…&limit=20&cursor=…` | Filtra por estado y zona; muestra la prioridad y el impacto que devuelve AWS. Los contadores indican solo las páginas cargadas. |
+| Incidente | `GET /incidentes/{id}` | Evidencia colectiva y técnica, antenas relacionadas, recuperación e historial. Un incidente puede nacer de reportes aun sin antena vinculada. |
+| Decisión sobre incidente | `PATCH /incidentes/{id}/estado` | Solo transiciones permitidas. Exige un motivo y una revisión antes de confirmar; 409 actualiza el detalle para resolver un cambio concurrente. |
+| Reportes por zona | `GET /reportes?zone_id=…&limit=20&cursor=…` | Muestra reportes de la zona, sin afirmar que todos pertenezcan al mismo incidente. También permite abrir un ID completo. |
+| Reporte individual | `GET /reportes/{id}`, `PATCH /reportes/{id}/estado` | Consulta historial y cambia estado con motivo y confirmación. Solo muestra la terminación del número de servicio. |
+| Tendencias | `GET /tendencias?days=7\|30` | Zonas, antenas, tipos de problemas, recurrencia y tiempo de detección. Se consulta al abrir la vista o al cambiar de periodo. |
+| Apoyo de IA | `GET /incidentes/{id}/sugerencia` | Se solicita expresamente desde el detalle. Si GCP no responde, `available:false` se presenta sin bloquear el trabajo. La IA no decide el estado. |
 
-El [`amplify.yml`](../../amplify.yml) de la raíz ya define `frontend/cliente` como aplicación de monorepo, Node.js 22, `npm ci`, `npm run build` y `dist/` como artefacto. No despliega infraestructura backend ni crea roles IAM.
+Los errores de red, CORS, permisos, respuesta inválida y fallos de backend aparecen en su vista con opción de reintentar. Un HTTP 404 del recurso se distingue de una función todavía no disponible. Si el JWT expira, se vuelve al acceso.
 
-1. En Amplify Hosting, crea una aplicación conectada a GitHub y selecciona `DiegoLadrondeGuevara/hackathon-2026`. Selecciona la rama `codex/frontend-cliente-v1` mientras el portal siga allí; si el equipo la incorpora a `main`, selecciona `main`.
-2. Marca **My app is a monorepo** y escribe `frontend/cliente` como ruta de la aplicación. Amplify debe mostrar `AMPLIFY_MONOREPO_APP_ROOT=frontend/cliente`; si la aplicación ya existía, agrégala manualmente con ese valor.
-3. Usa la imagen de compilación predeterminada **Amazon Linux 2023** y deja que tome el `amplify.yml` del repositorio. En **Environment variables**, agrega:
+## Publicación en Amplify Hosting
+
+El [`amplify.yml`](../../amplify.yml) de la raíz construye `frontend/cliente` como aplicación de monorepo con Node.js 22, `npm ci`, `npm run build` y `dist/` como artefacto. **Clientes y operadores se publican en la misma aplicación Amplify.** El frontend no despliega recursos de backend ni crea roles IAM.
+
+1. Conecta Amplify Hosting al repositorio `DiegoLadrondeGuevara/hackathon-2026` y selecciona la rama que contiene este módulo. Al integrarse en `main`, selecciona `main`.
+2. Marca **My app is a monorepo**, fija `frontend/cliente` como ruta y comprueba `AMPLIFY_MONOREPO_APP_ROOT=frontend/cliente`.
+3. En **Environment variables**, configura:
 
    | Variable | Valor |
    | --- | --- |
    | `VITE_API_BASE_URL` | `https://ynyvt8x51k.execute-api.us-east-1.amazonaws.com` |
    | `VITE_AZURE_STATUS_URL` | `https://mango-ground-073e60210.3.azurestaticapps.net` |
 
-4. Guarda y despliega. El build debe terminar con `dist/index.html` y los archivos de `dist/assets/`.
-5. En **Hosting → Rewrites and redirects**, añade una regla `200` a `/index.html` para rutas SPA. Para no convertir archivos estáticos ausentes en HTML, usa como *source* la expresión recomendada por AWS: `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`.
-6. Abre la URL `*.amplifyapp.com` de esa rama. Comprueba acceso con un cliente ficticio, zonas, reportes, detalle y estado de zona. Después prueba crear un reporte sintético y verifica que aparezca una sola vez. Comprueba CORS desde el dominio final y el vencimiento del JWT.
+4. Despliega y comprueba acceso de ambos roles, CORS desde el dominio final, detalles, paginación y vencimiento de sesión.
+5. Si se usarán rutas SPA profundas, configura una reescritura 200 a `/index.html` para rutas sin extensión. La versión actual navega sin cambiar la URL, así que no depende de esa regla.
 
-`VITE_` significa que ambos valores quedan visibles en el JavaScript del navegador; son URLs públicas. No agregues `SEED_DEMO_PASSWORD`, JWT, claves de Azure/Grafana ni credenciales AWS como variables del frontend. La contraseña de demo se comparte fuera del repositorio.
+Los valores `VITE_` son públicos en el JavaScript generado. **No coloques** contraseña de demo, JWT, claves de AWS, Azure o Grafana en las variables del frontend. El login utiliza directamente el backend.
 
-**Cloudflare: pendiente.** Primero necesitamos la URL de Amplify funcionando y un dominio propio. Luego se añade el dominio a Amplify, se conserva el CNAME de validación ACM como **DNS only**, se verifica HTTPS y recién después se evalúa el proxy de Cloudflare para el CNAME del portal con TLS **Full (strict)**. Probaremos las métricas de solicitudes y caché sin almacenar respuestas privadas. Cloudflare delante del portal observará el tráfico del sitio; las llamadas del navegador directamente a `execute-api` seguirán fuera de ese proxy.
+**Cloudflare sigue pendiente.** Se integrará cuando haya un dominio propio y una URL de Amplify activa. El proxy podrá observar el tráfico del portal, mientras que las llamadas directas del navegador a `execute-api` no atravesarán ese proxy. Las respuestas privadas no deben quedar en caché.
 
-Referencias: [monorepos en Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/monorepo-configuration.html), [rewrites de SPA](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html), [dominio externo en Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/to-add-a-custom-domain-managed-by-a-third-party-dns-provider.html), [proxy DNS de Cloudflare](https://developers.cloudflare.com/dns/proxy-status/).
+## Verificación y límites
 
-## Verificación
+- `npm run build` pasó el 15/11/2026.
+- Con el operador de demo se verificaron en navegador el login, la bandeja por estado, un incidente con historial, la lista y detalle de reportes por zona y las tendencias de 7 días. El API respondió con datos reales, incluidas antenas recurrentes.
+- Se revisaron las vistas móvil y de escritorio. La pantalla de acceso móvil se ajustó para separar marca y formulario.
+- No se ejecutaron `PATCH` ni se solicitó una sugerencia de IA durante esta revisión para no modificar los casos de la demo ni generar consumo externo. Esas rutas están integradas y deben probarse de extremo a extremo con un caso desechable del equipo.
+- El backend no ofrece por ahora una lista de IDs de reportes vinculados a un incidente; el portal solo muestra el conteo confirmado por AWS y la lista zonal por separado. Tampoco ofrece un total global de la bandeja, por eso los indicadores describen las páginas cargadas.
+- La aplicación Amplify y Cloudflare todavía requieren publicación y validación desde sus dominios finales.
 
-- El build local pasó. Se revisó visualmente la pantalla de acceso en escritorio y móvil, y el inicio, detalle e ingreso al formulario en una sesión autenticada de escritorio.
-- Con la cuenta ficticia `CUSTOMER` de la semilla, el login, `GET /zonas`, `GET /reportes`, `GET /reportes/{id}` y `GET /incidentes?zone_id=Z01` respondieron HTTP 200 el 15/11/2026. La respuesta incluyó 12 zonas y el detalle de un reporte con historial. La contraseña de demo se distribuye fuera de este repositorio.
-- Las solicitudes `OPTIONS` de `/auth/login` y `/reportes` desde `http://localhost:5173` respondieron 204 y autorizaron `authorization,content-type,idempotency-key`. Debe repetirse desde el dominio definitivo de Amplify.
-- El historial de un reporte se mostró en el navegador autenticado. Falta probar la creación de reportes, la paginación y el vencimiento de sesión desde el navegador. No se creó un reporte de prueba en la API durante esta verificación.
-- No existe todavía una aplicación Amplify para este portal; la configuración de compilación ya está lista en el repositorio. El portal de operadores es una fase posterior y no está incluido aquí. Cloudflare también sigue pendiente.
-- El backend actual acepta `location_text` vacío, aunque el caso pide localización aproximada; este formulario la exige. AWS debe alinear la validación del servidor. El backend tampoco comprueba aún que `service_number` pertenezca al usuario autenticado.
-
-Para el contexto general y despliegue del backend, consulta el [`README.md` principal](../../README.md).
+Para el contexto general y los estados de negocio, consulta el [README principal](../../README.md).

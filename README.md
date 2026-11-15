@@ -30,7 +30,7 @@ Los eventos nunca se publican directo: se escriben en la tabla `Outbox` dentro d
 | `scripts/` | Parámetros SSM, datos de demo, prueba de humo, escenarios y prueba de carga. |
 | `gcp/` | Cloud Run (`/ingest`, `/suggest`), BigQuery y Gemini, con Terraform. |
 | `azure/` | Reservada para la página de estado (Functions y Static Web Apps). |
-| `frontend/cliente/` | Portal React de clientes; desarrollo local y configuración de Amplify en [su README](frontend/cliente/README.md). |
+| `frontend/cliente/` | Portal React de clientes y operadores; desarrollo local y configuración de Amplify en [su README](frontend/cliente/README.md). |
 | `arquitectura/` | Diagramas de la solución. |
 
 ## Requisitos
@@ -103,9 +103,9 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 
 Operador de demo: `OP001`. Clientes de demo: `70000001` a `70000020`.
 
-## Portal de clientes
+## Portal de servicio
 
-La primera versión en [`frontend/cliente/`](frontend/cliente/README.md) incluye acceso, inicio, creación y consulta de reportes, historial y estado público por zona. Compila localmente y se probó en navegador con una cuenta ficticia: login, zonas, lista y detalle de reportes e incidencias respondieron desde el API de `dev`. El [`amplify.yml`](amplify.yml) prepara la publicación de la subcarpeta. **Falta** crear la aplicación en Amplify y probar allí la creación de un reporte, la paginación y el vencimiento de sesión. Cloudflare delante del portal y el portal de operadores continúan pendientes.
+La aplicación en [`frontend/cliente/`](frontend/cliente/README.md) sirve a **clientes y operadores** según el rol devuelto por el login. Los clientes crean y siguen reportes y consultan el estado de su zona. Los operadores revisan la cola por prioridad, el detalle y el historial de incidentes, los reportes por zona, las tendencias y las sugerencias de IA bajo demanda; pueden cambiar estados con motivo y confirmación. Las consultas principales se probaron contra el API de `dev` con cuentas ficticias. El [`amplify.yml`](amplify.yml) prepara una sola aplicación Amplify para ambos roles. **Falta** crear o publicar la aplicación en Amplify y validar desde su dominio los cambios de estado, la creación de reportes, la paginación y el vencimiento de sesión. Cloudflare delante del portal continúa pendiente.
 
 ## API (API Gateway HTTP API)
 

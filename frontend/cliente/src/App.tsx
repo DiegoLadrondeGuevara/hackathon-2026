@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { api, ApiError, readableError } from './api'
 import type { CreateReportBody, Incident, Report, Session, Zone } from './types'
+import OperatorApp from './OperatorApp'
 
 type View = 'home' | 'new' | 'reports' | 'detail' | 'zone' | 'success'
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -60,8 +61,8 @@ function LoadingState({ label = 'Cargando información…' }: { label?: string }
   return <div className="loading-state" role="status"><LoaderCircle className="spin" size={20} />{label}</div>
 }
 
-function Brand({ light = false }: { light?: boolean }) {
-  return <div className={`brand ${light ? 'brand-light' : ''}`}><div className="brand-mark"><Signal size={21} strokeWidth={2.8} /></div><div><strong>red<span>telecorp</span></strong><small>PORTAL DE CLIENTES</small></div></div>
+function Brand({ light = false, portal = 'PORTAL DE CLIENTES' }: { light?: boolean; portal?: string }) {
+  return <div className={`brand ${light ? 'brand-light' : ''}`}><div className="brand-mark"><Signal size={21} strokeWidth={2.8} /></div><div><strong>red<span>telecorp</span></strong><small>{portal}</small></div></div>
 }
 
 function LoginScreen({ onLogin, notice }: { onLogin: (session: Session) => void; notice: string }) {
@@ -77,8 +78,8 @@ function LoginScreen({ onLogin, notice }: { onLogin: (session: Session) => void;
     try {
       const result = await api.login(identifier.trim(), password)
       if (!result.token || !Number.isFinite(result.expires_in)) throw new ApiError('El inicio de sesión devolvió datos incompletos.', 200, 'INVALID_RESPONSE', '/auth/login')
-      if (result.role !== 'CUSTOMER') throw new ApiError('Esta primera versión del portal es solo para clientes. Tu cuenta de operador no se ha modificado.', 403, 'ROLE', '/auth/login')
-      onLogin({ token: result.token, role: 'CUSTOMER', name: result.name || 'Cliente', expiresAt: Date.now() + result.expires_in * 1000 })
+      if (result.role !== 'CUSTOMER' && result.role !== 'OPERATOR') throw new ApiError('El servidor devolvió un rol no reconocido.', 200, 'INVALID_RESPONSE', '/auth/login')
+      onLogin({ token: result.token, role: result.role, name: result.name || (result.role === 'OPERATOR' ? 'Operador' : 'Cliente'), expiresAt: Date.now() + result.expires_in * 1000 })
     } catch (caught) {
       setError(caught)
     } finally {
@@ -88,18 +89,18 @@ function LoginScreen({ onLogin, notice }: { onLogin: (session: Session) => void;
 
   return <main className="login-layout">
     <section className="login-story" aria-label="Red TeleCorp">
-      <div className="story-top"><Brand light /><span className="story-tag"><span /> Centro de servicio</span></div>
+      <div className="story-top"><Brand light portal="PORTAL DE SERVICIO" /><span className="story-tag"><span /> Centro de servicio</span></div>
       <div className="story-content"><div className="eyebrow story-eyebrow"><span className="eyebrow-line" /> CONECTADOS CONTIGO</div>
         <h1>Tu conexión importa.<br /><em>Tu voz también.</em></h1>
-        <p>Reporta lo que ocurre con tu servicio y sigue cada paso de la atención desde un solo lugar.</p>
+        <p>Clientes y operadores trabajan sobre la misma información para detectar, atender y seguir cada incidencia de la red.</p>
         <div className="story-features"><div><span><FilePlus2 size={18} /></span><div><strong>Reporta en minutos</strong><small>Cuéntanos qué sucede y dónde.</small></div></div><div><span><Activity size={18} /></span><div><strong>Sigue el progreso</strong><small>Consulta el estado y su historial.</small></div></div></div>
       </div>
       <div className="orbit" aria-hidden="true"><div className="orbit-ring orbit-one" /><div className="orbit-ring orbit-two" /><div className="orbit-ring orbit-three" /><div className="orbit-core"><RadioTower size={52} /></div><i className="orbit-point point-one" /><i className="orbit-point point-two" /><i className="orbit-point point-three" /></div>
       <div className="story-bottom"><span>Red TeleCorp · Red que escucha</span><span>Atención digital 24/7</span></div>
     </section>
-    <section className="login-side"><div className="login-mobile-brand"><Brand /></div><div className="login-box"><div className="login-kicker"><span className="small-line" /> BIENVENIDO DE NUEVO</div><h2>Accede a tu portal</h2><p className="login-intro">Ingresa con tu identificación y contraseña para consultar tus reportes.</p>
+    <section className="login-side"><div className="login-mobile-brand"><Brand portal="PORTAL DE SERVICIO" /></div><div className="login-box"><div className="login-kicker"><span className="small-line" /> BIENVENIDO DE NUEVO</div><h2>Accede a tu portal</h2><p className="login-intro">Clientes y operadores ingresan con su identificación y contraseña.</p>
       {notice && <div className="notice-bar" role="status"><Clock3 size={17} />{notice}</div>}
-      <form onSubmit={submit} className="login-form"><label htmlFor="identifier">Identificación</label><input id="identifier" autoComplete="username" inputMode="numeric" placeholder="Tu número de identificación" maxLength={64} value={identifier} onChange={event => setIdentifier(event.target.value)} required />
+      <form onSubmit={submit} className="login-form"><label htmlFor="identifier">Identificación</label><input id="identifier" autoComplete="username" placeholder="Documento o código de operador" maxLength={64} value={identifier} onChange={event => setIdentifier(event.target.value)} required />
         <label htmlFor="password">Contraseña</label><input id="password" type="password" autoComplete="current-password" placeholder="Ingresa tu contraseña" maxLength={256} value={password} onChange={event => setPassword(event.target.value)} required />
         {error !== null && <ErrorPanel error={error} compact />}
         <button className="primary-button login-button" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" size={18} /> Accediendo…</> : <>Ingresar al portal <ArrowRight size={18} /></>}</button>
@@ -208,11 +209,12 @@ function App() {
     catch (error) { catchError(error, setDetailError, setDetailState) }
   }
 
-  useEffect(() => { if (!session) return; void loadZones(session.token); void loadReports(session.token) }, [session])
-  useEffect(() => { if (!session || !zoneId) return; setIncidents([]); void loadIncidents(session.token, zoneId) }, [session, zoneId])
+  useEffect(() => { if (!session || session.role !== 'CUSTOMER') return; void loadZones(session.token); void loadReports(session.token) }, [session])
+  useEffect(() => { if (!session || session.role !== 'CUSTOMER' || !zoneId) return; setIncidents([]); void loadIncidents(session.token, zoneId) }, [session, zoneId])
   useEffect(() => { if (!session) return; const timer = window.setInterval(() => { if (Date.now() >= session.expiresAt) unauthorized() }, 10_000); return () => window.clearInterval(timer) }, [session])
 
   if (!session) return <LoginScreen notice={loginNotice} onLogin={value => { setSession(value); setLoginNotice(''); setView('home') }} />
+  if (session.role === 'OPERATOR') return <OperatorApp session={session} onUnauthorized={unauthorized} onLogout={() => { setSession(null); setLoginNotice('Has cerrado sesión.') }} />
 
   const selectedZone = zones.find(zone => zone.zone_id === zoneId)
   const activeReports = reports.filter(report => !['SOLUCIONADA', 'CERRADA'].includes(report.status)).length
