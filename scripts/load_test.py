@@ -4,10 +4,10 @@ Uso (después de `serverless deploy` y de `scripts/seed.py`):
     PowerShell:  $env:SEED_DEMO_PASSWORD = "<clave de demo>"
     bash:        export SEED_DEMO_PASSWORD='<clave de demo>'
     python scripts/load_test.py --base-url https://<id>.execute-api.us-east-1.amazonaws.com --zona Z05 -n 30
-    python scripts/load_test.py --zona Z02 -n 100 --hilos 10 --servicio MOVIL --espera 120
+    python scripts/load_test.py --zona Z02 -n 100 --hilos 4 --servicio MOVIL --espera 120
 
 Opciones: --zona (Z05), -n/--reportes (30, hasta 1000), --servicio INTERNET|MOVIL (INTERNET),
---problema (SIN_INTERNET), --hilos (5, hasta 20), --clientes (20: cuántos clientes de demo, de
+--problema (SIN_INTERNET), --hilos (2, hasta 4), --clientes (20: cuántos clientes de demo, de
 70000001 en adelante, hasta 20), --espera (60: segundos para esperar un incidente activo; 0 lo omite).
 La URL también puede venir de SMOKE_BASE_URL. La contraseña sale solo de SEED_DEMO_PASSWORD y nunca se
 imprime, igual que los tokens. Solo usa stdlib.
@@ -36,7 +36,7 @@ BASE_URL_ENV = "SMOKE_BASE_URL"
 FIRST_CUSTOMER = 70000001
 MAX_CUSTOMERS = 20
 MAX_REPORTS = 1000
-MAX_THREADS = 20
+MAX_THREADS = 4   # AWS Academy: máx. 10 Lambdas simultáneas en toda la cuenta
 POLL_SECONDS = 3
 
 
@@ -146,7 +146,7 @@ def main(argv=None) -> int:
     parser.add_argument("-n", "--reportes", type=int, default=30)
     parser.add_argument("--servicio", choices=["INTERNET", "MOVIL"], default="INTERNET")
     parser.add_argument("--problema", default="SIN_INTERNET")
-    parser.add_argument("--hilos", type=int, default=5)
+    parser.add_argument("--hilos", type=int, default=2)
     parser.add_argument("--clientes", type=int, default=MAX_CUSTOMERS)
     parser.add_argument("--espera", type=int, default=60)
     args = parser.parse_args(argv)

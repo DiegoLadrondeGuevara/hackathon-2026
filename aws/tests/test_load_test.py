@@ -123,7 +123,7 @@ def test_falta_clave_o_url(lt, monkeypatch):
         lt.main([])
 
 
-@pytest.mark.parametrize("args", [["-n", "0"], ["-n", "1001"], ["--hilos", "0"], ["--hilos", "21"],
+@pytest.mark.parametrize("args", [["-n", "0"], ["-n", "1001"], ["--hilos", "0"], ["--hilos", "5"],
                                   ["--clientes", "21"], ["--espera", "-1"], ["--zona", " "]])
 def test_argumentos_fuera_de_rango(lt, monkeypatch, args):
     api = FakeApi(lt, monkeypatch)

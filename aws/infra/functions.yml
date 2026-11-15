@@ -127,6 +127,7 @@ clasificadoraDeMetricas:
     - sqs:
         arn: !GetAtt ColaMetricas.Arn
         batchSize: 1
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         functionResponseType: ReportBatchItemFailures
 
 # --- Correlación y verificación ---
@@ -138,6 +139,7 @@ correlacionadoraDeReportes:
     - sqs:
         arn: !GetAtt ColaReportes.Arn
         batchSize: 10
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         functionResponseType: ReportBatchItemFailures
 
 correlacionadoraDeAnomalias:
@@ -148,6 +150,7 @@ correlacionadoraDeAnomalias:
     - sqs:
         arn: !GetAtt ColaAnomalias.Arn
         batchSize: 10
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         functionResponseType: ReportBatchItemFailures
 
 verificadoraDeEvidencias:
@@ -193,6 +196,7 @@ notificadoraDeClientes:
     - sqs:
         arn: !GetAtt ColaNotificaciones.Arn
         batchSize: 10
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         functionResponseType: ReportBatchItemFailures
 
 # --- Otras nubes (GCP con flags.external = true, Azure con flags.azure = true) ---
@@ -204,6 +208,7 @@ publicadoraHaciaGcp:
     - sqs:
         arn: !GetAtt ColaGcp.Arn
         batchSize: 10
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         maximumBatchingWindow: 10   # acumula eventos hasta 10 s: menos llamadas simultáneas a /ingest
         enabled: ${self:custom.flags.external}
         functionResponseType: ReportBatchItemFailures
@@ -216,5 +221,6 @@ publicadoraHaciaAzure:
     - sqs:
         arn: !GetAtt ColaAzure.Arn
         batchSize: 10
+        maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         enabled: ${self:custom.flags.azure}
         functionResponseType: ReportBatchItemFailures
