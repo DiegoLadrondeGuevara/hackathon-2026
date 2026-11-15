@@ -30,7 +30,7 @@ Primero intenta [Azure for Students](https://learn.microsoft.com/azure/education
 En Cloud Shell **Bash efímero**, la rama de Azure se puede obtener y revisar así. El grupo de recursos no genera cargos por sí mismo; `what-if` previsualiza cambios sin desplegar recursos. La consulta de salida muestra solo nombres y tipos de cambio, no los ajustes de la Function que incluyen una conexión de Storage.
 
 ```bash
-git clone --depth 1 --branch codex/azure-t16b https://github.com/DiegoLadrondeGuevara/hackathon-2026.git hackathon-azure
+git clone --depth 1 --branch codex/azure-grafana https://github.com/DiegoLadrondeGuevara/hackathon-2026.git hackathon-azure
 cd hackathon-azure
 az bicep build --file azure/infra/main.bicep
 az group create --name rg-red-telecorp-estado-dev --location eastus2 --output table
@@ -61,7 +61,7 @@ Desde Cloud Shell **Bash**, en el clon del repositorio y con la Function ya crea
 ```bash
 cd ~/hackathon-azure/azure/api
 FUNCTION_APP=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.functionAppName.value' --output tsv)
-zip -j /tmp/red-telecorp-estado-api.zip function_app.py status_store.py host.json requirements.txt
+zip -j /tmp/red-telecorp-estado-api.zip function_app.py status_store.py observability.py host.json requirements.txt
 az functionapp deployment source config-zip --resource-group rg-red-telecorp-estado-dev --name "$FUNCTION_APP" --src /tmp/red-telecorp-estado-api.zip --build-remote true
 curl -i "https://$FUNCTION_APP.azurewebsites.net/api/estado"
 ```
@@ -136,7 +136,7 @@ Del equipo AWS necesitamos también la lista definitiva de `zone_id` del catálo
 
 Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana es una integración adicional pendiente; solo debe transmitir métricas sin PII.
 
-## Grafana Cloud: datos recibidos, integración pendiente
+## Grafana Cloud: exportador preparado, despliegue pendiente
 
 El equipo facilitó estos datos **no secretos** para la futura exportación desde Azure:
 
@@ -147,6 +147,22 @@ El equipo facilitó estos datos **no secretos** para la futura exportación desd
 | Instance ID | `1925059` |
 | Protocolo acordado | OTLP/HTTP JSON, adecuado para el volumen bajo de la demo |
 
-El token compartido está **incompleto** y no permite autenticar. Pide al responsable de Grafana un token de acceso con permiso `metrics:write` para esta instancia. No lo envíes por chat, no lo pegues en `azure/.env`, `local.settings.json`, Bicep ni Git. Al implementar el exportador, el responsable de Azure puede introducir el valor completo directamente en **Function App → Settings → Environment variables → App settings** con un nombre como `GRAFANA_TOKEN`; Azure cifra esos ajustes. La autenticación OTLP usa el Instance ID como usuario y el token como contraseña. [Grafana documenta la ruta `/v1/metrics` y la configuración OTLP](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/); [Azure documenta los ajustes de Function App](https://learn.microsoft.com/en-us/azure/azure-functions/functions-how-to-use-azure-function-app-settings).
+El equipo compartió un token completo en una conversación. Para la configuración final, solicita al responsable de Grafana que **revoque ese token y genere uno nuevo** con permiso `metrics:write`; el token anterior no se ha usado en Azure. No copies ninguno a `azure/.env`, `local.settings.json`, Bicep, Git ni al portal Amplify. La autenticación OTLP usa el Instance ID como usuario y el token como contraseña. [Grafana documenta la ruta `/v1/metrics` y la configuración OTLP](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/); [Azure documenta los ajustes cifrados de Function App](https://learn.microsoft.com/en-us/azure/azure-functions/functions-how-to-use-azure-function-app-settings).
 
-Todavía no hay código Azure que emita métricas ni prueba de recepción en Grafana. Antes de introducir el token, definir métricas sin PII (por ejemplo, peticiones, errores y antigüedad de la última sincronización) y actualizar la infraestructura: `main.bicep` declara actualmente la lista de `appSettings`, por lo que una nueva ejecución de Bicep podría reemplazar un ajuste agregado manualmente. Grafana sigue siendo trabajo pendiente y no condiciona el funcionamiento actual de `GET/PUT /api/estado` ni del portal público.
+`api/observability.py` emite métricas OTLP/HTTP JSON desde la Function, sin dependencias nuevas. Cada respuesta `GET /api/estado` o `PUT /api/estado/{zone_id}` registra recuento acumulado, errores y latencia; el GET registra además cantidad de zonas con sincronización atrasada (>10 min) y mayor antigüedad. Solo se transmiten ruta fija, estado HTTP y agregados, sin `zone_id`, cuerpos, usuarios, claves ni texto público. Un fallo de Grafana no modifica la respuesta del API; la exportación puede añadir hasta un segundo de latencia a cada petición mientras esté configurada. Las respuestas 401 rechazadas por el runtime antes de invocar la Function no están instrumentadas.
+
+| Métrica | Significado |
+| --- | --- |
+| `redtelecorp.azure.requests` | Contador acumulado de respuestas por ruta fija y código HTTP |
+| `redtelecorp.azure.errors` | Contador acumulado de respuestas HTTP 4xx/5xx por ruta y código |
+| `redtelecorp.azure.latency_ms` | Duración de la operación Azure, sin el tiempo de envío a Grafana |
+| `redtelecorp.azure.zones_stale` | Zonas cuya última sincronización supera 10 min o no tiene fecha válida |
+| `redtelecorp.azure.sync_age_max_seconds` | Mayor antigüedad de sincronización entre zonas con fecha válida |
+
+### Activación en Azure
+
+1. En el clon de Cloud Shell, ejecuta `git fetch origin` y `git switch --track origin/codex/azure-grafana` (o `git pull --ff-only` si ya estás en esa rama). Publica el nuevo ZIP de `azure/api` con el comando anterior, incluyendo `observability.py`. No hace falta volver a crear los recursos con Bicep.
+2. En Azure Portal abre la Function App `red-telecorp-estado-api-slx33vbj` → **Settings → Environment variables → App settings**. Agrega `GRAFANA_OTLP_ENDPOINT` con el endpoint base de la tabla, `GRAFANA_INSTANCE_ID` con `1925059` y `GRAFANA_TOKEN` con el **token nuevo completo**. Guarda los cambios. Si falta uno de los tres, el exportador queda desactivado y la API sigue funcionando.
+3. Invoca `GET https://red-telecorp-estado-api-slx33vbj.azurewebsites.net/api/estado` y busca las métricas `redtelecorp.azure.*` en Grafana Explore. Verifica la recepción, un error controlado y el panel. El token no debe aparecer en logs ni capturas.
+
+`main.bicep` declara actualmente la lista de `appSettings`; si vuelves a desplegar la infraestructura, comprueba si los tres ajustes de Grafana siguen presentes y vuelve a introducirlos desde el portal si fueron reemplazados. La exportación Azure todavía **no está desplegada ni verificada contra Grafana** en esta rama: las pruebas locales usan un receptor simulado.
