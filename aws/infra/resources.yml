@@ -1,6 +1,7 @@
 # Recursos de AWS. Las tablas siguen aws/tests/schema.py.
 Conditions:
   ExternalOn: !Equals ['${self:custom.flags.external}', 'true']
+  AzureOn: !Equals ['${self:custom.flags.azure}', 'true']
   HasOpsEmail: !Not [!Equals ['${self:custom.flags.opsEmail}', '']]
 
 Resources:
@@ -369,7 +370,7 @@ Resources:
     Properties:
       Name: ${self:custom.prefix}-ReglaHaciaAzure
       EventBusName: !Ref OperacionesBus
-      State: !If [ExternalOn, ENABLED, DISABLED]
+      State: !If [AzureOn, ENABLED, DISABLED]
       EventPattern:
         source: [red-telecorp]
         detail-type: [incident.updated]
