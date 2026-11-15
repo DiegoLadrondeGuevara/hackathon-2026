@@ -105,7 +105,7 @@ Operador de demo: `OP001`. Clientes de demo: `70000001` a `70000020`.
 
 ## Portal de clientes
 
-La primera versión en [`frontend/cliente/`](frontend/cliente/README.md) incluye acceso, inicio, creación y consulta de reportes, historial y estado público por zona. Compila localmente y se probó en navegador con una cuenta ficticia: login, zonas, lista y detalle de reportes e incidencias respondieron desde el API de `dev`. **Falta** publicar en Amplify y probar allí la creación de un reporte, la paginación y el vencimiento de sesión. El portal de operadores continúa pendiente.
+La primera versión en [`frontend/cliente/`](frontend/cliente/README.md) incluye acceso, inicio, creación y consulta de reportes, historial y estado público por zona. Compila localmente y se probó en navegador con una cuenta ficticia: login, zonas, lista y detalle de reportes e incidencias respondieron desde el API de `dev`. El [`amplify.yml`](amplify.yml) prepara la publicación de la subcarpeta. **Falta** crear la aplicación en Amplify y probar allí la creación de un reporte, la paginación y el vencimiento de sesión. Cloudflare delante del portal y el portal de operadores continúan pendientes.
 
 ## API (API Gateway HTTP API)
 

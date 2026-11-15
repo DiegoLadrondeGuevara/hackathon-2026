@@ -11,7 +11,7 @@ import type { CreateReportBody, Incident, Report, Session, Zone } from './types'
 type View = 'home' | 'new' | 'reports' | 'detail' | 'zone' | 'success'
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 
-const AZURE_STATUS_URL = 'https://mango-ground-073e60210.3.azurestaticapps.net'
+const AZURE_STATUS_URL = (import.meta.env.VITE_AZURE_STATUS_URL || 'https://mango-ground-073e60210.3.azurestaticapps.net').replace(/\/$/, '')
 const STATUS_LABEL: Record<string, string> = {
   REGISTRADA: 'Registrada', EN_REVISION: 'En revisión', EN_ATENCION: 'En atención',
   SOLUCIONADA: 'Solucionada', CERRADA: 'Cerrada', EVALUACION: 'En evaluación',
