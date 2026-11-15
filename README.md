@@ -29,7 +29,7 @@ Los eventos nunca se publican directo: se escriben en la tabla `Outbox` dentro d
 | `aws/tests/` | Pruebas con `moto`, sin tocar AWS real. |
 | `scripts/` | Parámetros SSM, datos de demo, prueba de humo, escenarios y prueba de carga. |
 | `gcp/` | Cloud Run (`/ingest`, `/suggest`), BigQuery y Gemini, con Terraform. |
-| `azure/` | Reservada para la página de estado (Functions y Static Web Apps). |
+| `azure/` | Página pública de estado con Functions, Table Storage y Static Web Apps; exporta métricas a Grafana. |
 | `frontend/cliente/` | Portal React de clientes y operadores; desarrollo local y configuración de Amplify en [su README](frontend/cliente/README.md). |
 | `arquitectura/` | Diagramas de la solución. |
 
@@ -219,4 +219,4 @@ Variables de ejecución: `GOOGLE_CLOUD_PROJECT`, `BQ_DATASET`, `BQ_TABLE`, `BQ_L
 
 ## Azure
 
-Reservada para `red-telecorp-estado-publico` (Static Web Apps) y `red-telecorp-estado-api` (Functions con Table Storage `EstadoZonas`). Muestra el último estado por zona y la hora de la última sincronización, sin datos personales. `PublicadoraHaciaAzure` queda pendiente de implementar.
+`red-telecorp-estado-publico` (Static Web Apps) consulta `red-telecorp-estado-api` (Functions y Table Storage `EstadoZonas`). `PublicadoraHaciaAzure` ya envía los cambios de zona desde AWS. La página muestra el último estado por zona y la hora de sincronización, sin datos personales. La Function exporta métricas a Grafana; los detalles de despliegue y verificación están en [azure/README.md](azure/README.md).
