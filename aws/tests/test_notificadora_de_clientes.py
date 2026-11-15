@@ -364,7 +364,7 @@ def test_el_modo_sms_sigue_independiente_del_correo_por_sns(correo_sns, monkeypa
 
 # --- SMS por Twilio (SMS_MODE=TWILIO) ---
 
-SID_TWILIO, TOKEN_TWILIO, DESDE = "ACtest0000000000000000000000000000", "token-secreto-de-prueba", "+17372508034"
+SID_TWILIO, TOKEN_TWILIO, DESDE = "ACtest0000000000000000000000000000", "token-secreto-de-prueba", "+15005550006"
 
 
 @pytest.fixture
@@ -420,9 +420,9 @@ def test_los_textos_del_sms_caben_en_160_caracteres_sin_tildes():
     assert notif._sms_text(con_tildes) == sin_tildes
 
 
-@pytest.mark.parametrize("telefono,valido", [("+51956839954", True), ("+17372508034", True), ("956839954", False),
+@pytest.mark.parametrize("telefono,valido", [("+51900000099", True), ("+15005550006", True), ("900000099", False),
                                              ("+0123456789", False), ("+51 956 839 954", False), ("", False),
-                                             ("+519568399541234567", False)])
+                                             ("+519000000991234567", False)])
 def test_el_telefono_debe_estar_en_formato_e164(telefono, valido):
     perfil = {"channel_pref": "SMS", "consent_sms": True, "phone": telefono}
     assert (notif._channel(perfil) == "SMS") is valido
@@ -431,7 +431,7 @@ def test_el_telefono_debe_estar_en_formato_e164(telefono, valido):
 def test_telefono_invalido_no_envia_y_cae_al_otro_canal(twilio):
     ddb.table("CustomerProfiles").put_item(Item={
         "pk": "CUSTOMER#70000001", "sk": "PROFILE", "type": "CUSTOMER", "customer_id": "70000001",
-        "channel_pref": "SMS", "consent_sms": True, "phone": "956839954", "consent_email": True,
+        "channel_pref": "SMS", "consent_sms": True, "phone": "900000099", "consent_email": True,
         "email": "a@example.com"})
     _vinculo("70000001")
     _run(_actualizado())

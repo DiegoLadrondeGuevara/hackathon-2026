@@ -29,14 +29,14 @@ def test_envia_formulario_codificado_con_las_cabeceras(monkeypatch):
         return Response()
 
     monkeypatch.setattr(outbound, "urlopen", transport)
-    out = outbound.post_form("https://api.example.com/x", {"To": "+51956839954", "Body": "Hola ñandú & más"},
+    out = outbound.post_form("https://api.example.com/x", {"To": "+51900000099", "Body": "Hola ñandú & más"},
                              {"Authorization": "Basic abc"}, timeout=7)
     assert out == {"sid": "SM1"}
     (req, timeout) = vistos[0]
     assert req.get_method() == "POST" and timeout == 7
     assert req.get_header("Content-type") == "application/x-www-form-urlencoded"
     assert req.get_header("Authorization") == "Basic abc"
-    assert parse_qs(req.data.decode()) == {"To": ["+51956839954"], "Body": ["Hola ñandú & más"]}
+    assert parse_qs(req.data.decode()) == {"To": ["+51900000099"], "Body": ["Hola ñandú & más"]}
 
 
 def test_exige_https_y_rechaza_credenciales_en_la_url():
