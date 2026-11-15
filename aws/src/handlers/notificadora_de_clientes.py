@@ -5,6 +5,7 @@
 Cada (incidente, hito, cliente) tiene una sola intención `NOTIFY#<hito>#<cliente>`, creada con
 `attribute_not_exists(pk)`; así un reintento o un evento repetido no manda dos mensajes.
 Los fallos de envío se reintentan hasta 3 veces (`batchItemFailures`). Sin datos personales en los logs.
+Correo: EMAIL_MODE = SIMULATED (solo se registra), SES o SNS (tema `notificaciones-clientes`); SMS: SMS_MODE.
 """
 import json
 import logging
@@ -14,7 +15,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
-from common import config, ddb, domain, ids
+from common import config, ddb, domain, ids, pii
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -156,6 +157,24 @@ def _send_email(profile: dict, text: str) -> str:
     return resp["MessageId"]
 
 
+def _send_email_topic(profile: dict, text: str) -> str:
+    """Correo por un tema SNS (EMAIL_MODE=SNS). El mensaje solo lleva un seudónimo del cliente
+    (`customer_hash`), nunca su documento ni su correo; cada suscriptor del tema elige de qué clientes
+    recibe avisos con una política de filtro (ver scripts/suscribir_correo.py)."""
+    topic = os.environ.get("CUSTOMERS_TOPIC_ARN")
+    if not topic:
+        raise SendError("TopicNotConfigured")
+    try:
+        customer_hash = pii.customer_hash(config.get_secret("pii_salt"), profile["customer_id"])
+        resp = boto3.client("sns").publish(
+            TopicArn=topic, Subject=SUBJECT, Message=text,
+            MessageAttributes={"customer_hash": {"DataType": "String", "StringValue": customer_hash}},
+        )
+    except ClientError as exc:
+        raise SendError(exc.response["Error"]["Code"]) from None
+    return resp["MessageId"]
+
+
 def _send_sms(profile: dict, text: str) -> str:
     sns = boto3.client("sns")
     try:
@@ -170,6 +189,8 @@ def _send_sms(profile: dict, text: str) -> str:
 
 def _deliver(channel: str, profile: dict, text: str, modes: dict) -> tuple[str, str | None]:
     """Devuelve (canal registrado, message_id). Con SIMULATED solo se registra."""
+    if channel == "EMAIL" and modes["EMAIL"] == "SNS":
+        return channel, _send_email_topic(profile, text)
     if modes[channel] in ("SES", "SNS"):
         send = _send_email if channel == "EMAIL" else _send_sms
         return channel, send(profile, text)

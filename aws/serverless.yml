@@ -58,6 +58,7 @@ provider:
     METRICS_BUCKET: ${self:custom.prefix}-metricas-${self:custom.accountId}
     QUEUE_METRICAS_URL: !Ref ColaMetricas
     OPS_TOPIC_ARN: !Ref AlertasOperacionesTopic
+    CUSTOMERS_TOPIC_ARN: !Ref NotificacionesClientesTopic
     EMAIL_MODE: ${self:custom.flags.emailMode}
     SMS_MODE: ${self:custom.flags.smsMode}
 

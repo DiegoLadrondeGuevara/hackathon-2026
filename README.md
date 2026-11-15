@@ -82,14 +82,14 @@ Se editan y se vuelve a desplegar.
 | Flag | Valor | Efecto |
 |---|---|---|
 | `external` | `false` | `true` activa las reglas y colas hacia GCP y Azure. |
-| `emailMode` | `SIMULATED` | `SES` envía correos reales (hay que verificar remitentes en SES). |
+| `emailMode` | `SNS` | `SNS` publica los avisos en un tema de SNS al que se suscriben correos reales; `SES` envía por SES (no disponible en Academy); `SIMULATED` solo registra. |
 | `smsMode` | `SIMULATED` | `SNS` envía SMS reales (depende de los permisos de la cuenta). |
 | `generator` | `true` | `false` pausa el simulador de antenas y ahorra créditos. |
 | `grafana` | `true` | `false` deja de enviar métricas a Grafana Cloud (cada 5 minutos). |
 | `opsEmail` | correo | Suscripción de las alertas internas del equipo. Vacío = sin suscripción. |
 | `pitr` | `true` | Recuperación punto en el tiempo en DynamoDB (35 días de retención). |
 
-Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), sin llamar a SES ni a SNS.
+Siempre se guarda la intención y el resultado de cada aviso en la tabla `Incidents` (`NOTIFY`); con `SIMULATED` no se envía nada más.
 
 ## Scripts de demo y prueba
 
@@ -99,6 +99,8 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 | `scripts/scenario.py` | `activar --antena A004=0 --minutos 10`, `ver`, `limpiar`: fuerza fallas en antenas. A004 pertenece a Z02. Cada antena necesita 5 lecturas normales seguidas para cerrar su episodio. |
 | `scripts/load_test.py` | `--zona Z05 -n 30`: N reportes (1 hilo por defecto, máximo 4), con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
 | `scripts/seed.py` | Datos de demo, idempotente. `--force` reescribe perfiles. |
+| `scripts/suscribir_correo.py` | `suscribir --correo x@y.com --cliente 70000001` (o `--todos`) y `listar`: suscribe un correo al tema de avisos. AWS envía un correo de confirmación que hay que abrir. |
+| `scripts/generador.py` | `estado`, `pausar`, `reanudar`: detiene el simulador de antenas sin volver a desplegar. |
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
 
 Operador de demo: `OP001`. Clientes de demo: `70000001` a `70000020`.
@@ -172,6 +174,17 @@ Sobre estándar `{"event_id","type","version","occurred_at","data"}` en el bus `
 
 La verificación se dispara con `change` en `CREATED`, `EVIDENCE`, `THRESHOLD` y `RECOVERY`. `PRIORITY` y `STATUS` no la disparan, para evitar bucles.
 
+## Avisos a clientes (correo por SNS)
+
+`NotificadoraDeClientes` guarda una intención única por cliente e hito y la envía por el canal con consentimiento. Con `emailMode: SNS` publica el aviso en el tema `notificaciones-clientes`. El mensaje solo lleva un seudónimo del cliente (`customer_hash`, hash con sal), nunca su documento ni su correo, y cada suscriptor elige de qué clientes recibe avisos con una política de filtro:
+
+```bash
+python scripts/suscribir_correo.py suscribir --correo demo@dominio.com --cliente 70000001
+python scripts/suscribir_correo.py listar
+```
+
+AWS envía un correo de confirmación: hay que abrir su enlace, y lo publicado antes de confirmar no se recupera. SES y el SMS no están disponibles en AWS Academy.
+
 ## Observabilidad (Grafana Cloud)
 
 `PublicadoraHaciaGrafana` envía cada 5 minutos, por OTLP/HTTP JSON y sin datos personales, estas métricas con `service.name=red-telecorp-aws`:
@@ -187,7 +200,8 @@ Usa los parámetros SSM `grafana/otlp_endpoint`, `grafana/instance_id` y `grafan
 
 ## Límites del laboratorio (AWS Academy)
 
-- Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta. Cada cola limita su consumidor a 2 invocaciones simultáneas y agrupa mensajes en ventanas de 2 a 10 s para hacer menos invocaciones; `load_test.py` usa 1 hilo por defecto (máximo 4). Antes de una prueba de carga conviene poner `generator: false`.
+- Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta. Cada cola limita su consumidor a 2 invocaciones simultáneas y agrupa mensajes en ventanas escalonadas de 2 a 13 s, para hacer menos invocaciones y que no coincidan. `load_test.py` usa 1 hilo y 0,25 s de pausa por defecto (máximo 4 hilos).
+- Antes de una prueba de carga o de grabar la demo: `python scripts/generador.py pausar`, y `reanudar` al terminar.
 - El SMS real no es posible en esta cuenta: Academy deniega las acciones de SMS (`sms-voice:*`) y no deja verificar números de destino, así que `smsMode` queda en `SIMULATED`.
 - Solo se pueden usar los servicios que lista el laboratorio. Amplify, CloudFront y SES no están en esa lista.
 - Si se excede el presupuesto la cuenta se deshabilita: pon `generator: false` cuando no se esté probando.

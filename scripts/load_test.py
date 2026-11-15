@@ -7,8 +7,9 @@ Uso (después de `serverless deploy` y de `scripts/seed.py`):
     python scripts/load_test.py --zona Z02 -n 100 --hilos 4 --servicio MOVIL --espera 120
 
 Opciones: --zona (Z05), -n/--reportes (30, hasta 1000), --servicio INTERNET|MOVIL (INTERNET),
---problema (SIN_INTERNET), --hilos (1, hasta 4), --clientes (20: cuántos clientes de demo, de
-70000001 en adelante, hasta 20), --espera (60: segundos para esperar un incidente activo; 0 lo omite).
+--problema (SIN_INTERNET), --hilos (1, hasta 4), --pausa (0.25: segundos entre reportes de cada hilo),
+--clientes (20: cuántos clientes de demo, de 70000001 en adelante, hasta 20), --espera (60: segundos para
+esperar un incidente activo; 0 lo omite).
 La URL también puede venir de SMOKE_BASE_URL. La contraseña sale solo de SEED_DEMO_PASSWORD y nunca se
 imprime, igual que los tokens. Solo usa stdlib.
 
@@ -37,6 +38,8 @@ FIRST_CUSTOMER = 70000001
 MAX_CUSTOMERS = 20
 MAX_REPORTS = 1000
 MAX_THREADS = 4   # AWS Academy: máx. 10 Lambdas simultáneas en toda la cuenta
+DEFAULT_PAUSE = 0.25
+MAX_PAUSE = 10.0
 POLL_SECONDS = 3
 
 
@@ -77,11 +80,19 @@ def send_report(base_url: str, token: str, number: int, zone: str, service: str,
     return status, time.perf_counter() - started
 
 
-def run_load(base_url: str, tokens: list, zone: str, count: int, service: str, problem: str, threads: int) -> dict:
+def paced_report(pause: float, *args) -> tuple:
+    """Un reporte y una pausa: reparte la carga en el tiempo para no pasar el límite de Lambdas del laboratorio."""
+    result = send_report(*args)
+    time.sleep(pause)
+    return result
+
+
+def run_load(base_url: str, tokens: list, zone: str, count: int, service: str, problem: str, threads: int,
+             pause: float = 0.0) -> dict:
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=threads) as pool:
         futures = [
-            pool.submit(send_report, base_url, tokens[n % len(tokens)], n + 1, zone, service, problem)
+            pool.submit(paced_report, pause, base_url, tokens[n % len(tokens)], n + 1, zone, service, problem)
             for n in range(count)
         ]
         results = [f.result() for f in futures]
@@ -149,6 +160,7 @@ def main(argv=None) -> int:
     parser.add_argument("--hilos", type=int, default=1)
     parser.add_argument("--clientes", type=int, default=MAX_CUSTOMERS)
     parser.add_argument("--espera", type=int, default=60)
+    parser.add_argument("--pausa", type=float, default=DEFAULT_PAUSE)
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -164,11 +176,13 @@ def main(argv=None) -> int:
     threads = bounded("--hilos", args.hilos, 1, MAX_THREADS)
     customers = bounded("--clientes", args.clientes, 1, MAX_CUSTOMERS)
     wait = bounded("--espera", args.espera, 0, 600)
+    if not 0 <= args.pausa <= MAX_PAUSE:
+        raise SystemExit(f"--pausa debe estar entre 0 y {MAX_PAUSE:g} segundos")
 
     try:
         tokens = login_all(base_url, password, customers)
         print(f"{customers} cliente(s) con sesión; enviando {count} reporte(s) a {zone} ({args.servicio})")
-        summary = run_load(base_url, tokens, zone, count, args.servicio, args.problema, threads)
+        summary = run_load(base_url, tokens, zone, count, args.servicio, args.problema, threads, args.pausa)
         print_summary(summary)
         if wait and summary["created"] and min(count, customers) >= 10:
             incident = wait_incident(base_url, tokens[0], zone, args.servicio, wait)

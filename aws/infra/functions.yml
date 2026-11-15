@@ -200,7 +200,7 @@ notificadoraDeClientes:
         arn: !GetAtt ColaNotificaciones.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
-        maximumBatchingWindow: 10   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
+        maximumBatchingWindow: 7   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         functionResponseType: ReportBatchItemFailures
 
 # --- Otras nubes (GCP con flags.external = true, Azure con flags.azure = true) ---
@@ -213,7 +213,7 @@ publicadoraHaciaGcp:
         arn: !GetAtt ColaGcp.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
-        maximumBatchingWindow: 10   # acumula eventos hasta 10 s: menos llamadas simultáneas a /ingest
+        maximumBatchingWindow: 13   # acumula eventos hasta 13 s: menos llamadas simultáneas a /ingest
         enabled: ${self:custom.flags.external}
         functionResponseType: ReportBatchItemFailures
 
@@ -226,7 +226,7 @@ publicadoraHaciaAzure:
         arn: !GetAtt ColaAzure.Arn
         batchSize: 10
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
-        maximumBatchingWindow: 10   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
+        maximumBatchingWindow: 11   # agrupa mensajes: menos invocaciones simultáneas (límite de Academy)
         enabled: ${self:custom.flags.azure}
         functionResponseType: ReportBatchItemFailures
 

@@ -18,6 +18,9 @@ def lt(monkeypatch):
     monkeypatch.setenv("SEED_DEMO_PASSWORD", CLAVE)
     monkeypatch.delenv("SMOKE_BASE_URL", raising=False)
     monkeypatch.setattr(mod, "POLL_SECONDS", 0)
+    pausas = []
+    monkeypatch.setattr(mod.time, "sleep", pausas.append)  # sin esperas reales en las pruebas
+    mod.pausas = pausas
     return mod
 
 
@@ -124,7 +127,8 @@ def test_falta_clave_o_url(lt, monkeypatch):
 
 
 @pytest.mark.parametrize("args", [["-n", "0"], ["-n", "1001"], ["--hilos", "0"], ["--hilos", "5"],
-                                  ["--clientes", "21"], ["--espera", "-1"], ["--zona", " "]])
+                                  ["--clientes", "21"], ["--espera", "-1"], ["--zona", " "],
+                                  ["--pausa", "-1"], ["--pausa", "11"]])
 def test_argumentos_fuera_de_rango(lt, monkeypatch, args):
     api = FakeApi(lt, monkeypatch)
     with pytest.raises(SystemExit):
@@ -136,3 +140,18 @@ def test_percentil(lt):
     valores = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     assert lt.percentile(valores, 50) == 5 and lt.percentile(valores, 95) == 10
     assert lt.percentile([], 50) == 0.0 and lt.percentile([7], 95) == 7
+
+
+def test_pausa_por_defecto_entre_reportes(lt, monkeypatch):
+    FakeApi(lt, monkeypatch)
+    assert _main(lt, "-n", "4", "--espera", "0") == 0
+    assert lt.pausas.count(lt.DEFAULT_PAUSE) == 4
+
+
+def test_pausa_configurable_y_cero(lt, monkeypatch):
+    FakeApi(lt, monkeypatch)
+    _main(lt, "-n", "3", "--espera", "0", "--pausa", "1.5")
+    assert lt.pausas.count(1.5) == 3
+    lt.pausas.clear()
+    _main(lt, "-n", "3", "--espera", "0", "--pausa", "0")
+    assert lt.pausas.count(0.0) == 3

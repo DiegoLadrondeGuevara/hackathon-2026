@@ -383,6 +383,10 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: ${self:custom.prefix}-alertas-operaciones
+  NotificacionesClientesTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:custom.prefix}-notificaciones-clientes
   AlertasOperacionesEmail:
     Type: AWS::SNS::Subscription
     Condition: HasOpsEmail

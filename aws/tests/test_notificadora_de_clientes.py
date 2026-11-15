@@ -4,7 +4,7 @@ import json
 import boto3
 import pytest
 
-from common import ddb, ids
+from common import ddb, ids, pii
 from handlers import notificadora_de_clientes as notif
 
 INCIDENTE = "I0000000000000000000000001"
@@ -281,3 +281,81 @@ def test_los_logs_no_llevan_datos_personales(aws, caplog):
         _run(_actualizado())
     texto = caplog.text
     assert "70000001" not in texto and "example.com" not in texto and "+51999" not in texto
+
+
+# --- Correo por tema SNS (EMAIL_MODE=SNS) ---
+
+@pytest.fixture
+def correo_sns(aws, monkeypatch):
+    """Tema SNS con una cola suscrita, para leer lo publicado. Devuelve (tema, leer, suscribir_con_filtro)."""
+    monkeypatch.setenv("EMAIL_MODE", "SNS")
+    sns, sqs = boto3.client("sns"), boto3.client("sqs")
+    topic = sns.create_topic(Name="red-telecorp-test-notificaciones-clientes")["TopicArn"]
+    monkeypatch.setenv("CUSTOMERS_TOPIC_ARN", topic)
+    boto3.client("ssm").put_parameter(Name="/red-telecorp/test/pii_salt", Value="sal-de-prueba", Type="SecureString")
+
+    def suscribir(nombre, customer_id=None):
+        url = sqs.create_queue(QueueName=nombre)["QueueUrl"]
+        arn = sqs.get_queue_attributes(QueueUrl=url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+        attrs = {}
+        if customer_id:
+            h = pii.customer_hash("sal-de-prueba", customer_id)
+            attrs = {"FilterPolicy": json.dumps({"customer_hash": [h]}), "FilterPolicyScope": "MessageAttributes"}
+        sns.subscribe(TopicArn=topic, Protocol="sqs", Endpoint=arn, Attributes=attrs)
+        return url
+
+    def leer(url):
+        msgs = sqs.receive_message(QueueUrl=url, MaxNumberOfMessages=10).get("Messages", [])
+        return [json.loads(m["Body"]) for m in msgs]
+
+    return topic, leer, suscribir
+
+
+def test_correo_por_sns_publica_en_el_tema_con_seudonimo(correo_sns):
+    topic, leer, suscribir = correo_sns
+    todos = suscribir("todos")
+    _perfil("70000001", sms=False)
+    _vinculo("70000001")
+    assert _run(_actualizado("CONFIRMADO"))["batchItemFailures"] == []
+    item = _notify_items()["NOTIFY#CONFIRMADO#70000001"]
+    assert (item["status"], item["channel"]) == ("SENT", "EMAIL") and item["message_id"]
+    (msg,) = leer(todos)
+    assert msg["Message"] == notif.TEMPLATES["CONFIRMADO"] and msg["Subject"] == notif.SUBJECT
+    assert msg["MessageAttributes"]["customer_hash"]["Value"] == pii.customer_hash("sal-de-prueba", "70000001")
+
+
+def test_correo_por_sns_no_lleva_documento_ni_correo(correo_sns):
+    _, leer, suscribir = correo_sns
+    todos = suscribir("todos")
+    _perfil("70000001", sms=False)
+    _vinculo("70000001")
+    _run(_actualizado())
+    texto = json.dumps(leer(todos))
+    assert "70000001" not in texto and "example.com" not in texto and "+51999" not in texto
+
+
+def test_cada_suscriptor_recibe_solo_los_clientes_que_eligio(correo_sns):
+    _, leer, suscribir = correo_sns
+    solo_uno, otro, todos = suscribir("uno", "70000001"), suscribir("otro", "70000002"), suscribir("todos")
+    for c in ("70000001", "70000002", "70000003"):
+        _perfil(c, sms=False)
+        _vinculo(c)
+    _run(_actualizado())
+    assert len(leer(solo_uno)) == 1 and len(leer(otro)) == 1 and len(leer(todos)) == 3
+
+
+def test_correo_por_sns_sin_tema_configurado_falla_y_reintenta(correo_sns, monkeypatch):
+    monkeypatch.delenv("CUSTOMERS_TOPIC_ARN")
+    _perfil(sms=False)
+    _vinculo("70000001")
+    assert _fallos(_run(_actualizado())) == ["m1"]
+    item = _notify_items()["NOTIFY#CONFIRMADO#70000001"]
+    assert (item["status"], item["error"], item["attempts"]) == ("FAILED", "TopicNotConfigured", 1)
+
+
+def test_el_modo_sms_sigue_independiente_del_correo_por_sns(correo_sns, monkeypatch):
+    monkeypatch.setenv("SMS_MODE", "SIMULATED")
+    _perfil(pref="SMS", email=False, sms=True)
+    _vinculo("70000001")
+    _run(_actualizado())
+    assert _notify_items()["NOTIFY#CONFIRMADO#70000001"]["channel"] == "SIMULATED"
