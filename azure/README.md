@@ -21,7 +21,8 @@ Primero intenta [Azure for Students](https://learn.microsoft.com/azure/education
 
 - Para IaC puedes usar **Azure Cloud Shell** desde el portal o instalar **Azure CLI** y Bicep localmente. Cloud Shell evita instalar CLI, pero igualmente requiere una suscripción y sus recursos pueden tener costo.
 - Para publicar Python desde Windows, instala **Python 3.11** y **Azure Functions Core Tools v4**. Para el portal, instala Node.js y usa `npx @azure/static-web-apps-cli`.
-- Copia `.env.example` a `.env` solo como recordatorio local. `.env` está ignorado por Git. No guardes claves de Function ni deployment tokens en archivos versionados.
+- Copia `.env.example` a `.env` para guardar los nombres, regiones y URLs no secretos del despliegue. En el checkout local del responsable de Azure ya existe `azure/.env` con los valores del despliegue `dev`; cada integrante debe crear su propia copia si la necesita. Git lo ignora. El archivo no configura automáticamente Azure: Bicep define los ajustes de la Function en Azure y `web/dist/config.js` define la URL que consulta el portal. Cloud Shell es efímero y tampoco carga `azure/.env` automáticamente.
+- No guardes la clave de Function `aws-publisher`, connection strings ni deployment tokens en `.env`, Cloud Shell persistente, Git o mensajes públicos. La clave ya se creó en Azure; se puede copiar desde las **Function keys** de `actualizar_estado` en el portal para entregarla solo al responsable de AWS por un canal privado.
 - Confirma en Azure CLI la suscripción y la región: `az login`, `az account list --output table`, `az account set --subscription <id>`, `az functionapp list-flexconsumption-locations --output table`.
 
 ## Validar y crear recursos
@@ -120,8 +121,17 @@ Content-Type: application/json
 
 La API devuelve `{"applied":true,...}` cuando guarda, y `{"applied":false,...}` si el evento es repetido o antiguo. `GET /api/estado` devuelve `{"zones":[...]}` con `zone_id`, estado, prioridad, mensaje, `updated_at` y `last_synced_at`, ordenado por zona.
 
-## Integración pendiente con AWS
+## Estado del despliegue y entrega al equipo
 
-El equipo de AWS necesita, por canal privado, `functionBaseUrl` y una clave específica de la Function para `PublicadoraHaciaAzure`. Deben configurar sus parámetros SSM `azure/base_url` y `azure/api_key` y enviar los cuatro textos acordados: `Evaluando`, `Incidencia identificada`, `Servicio restablecido`, `Sin incidencias`. `CERRADO` en AWS se traduce a `SIN_INCIDENTE` en Azure. No se necesita un correo ni cuenta AWS dentro de Azure; el límite entre nubes es HTTPS.
+La cuenta Free Trial está activa y el grupo `rg-red-telecorp-estado-dev` contiene la Function, Storage/Table Storage y Static Web App. La API y el portal ya se publicaron. Se verificó CORS desde el portal, un `PUT` autenticado para `Z01` respondió `applied: true` y el `GET` público devolvió esa zona. Esto comprueba Azure de forma aislada; **todavía no demuestra la publicación desde AWS**.
 
-Antes de la prueba de punta a punta falta una cuenta Azure activa, confirmar las regiones y cuotas, desplegar la infraestructura, publicar API y portal, probar el `PUT` con la clave, probar `GET` y conectar la Lambda de AWS. No se ha desplegado nada en Azure desde este repositorio todavía.
+El equipo de AWS necesita ahora:
+
+1. La URL base pública `https://red-telecorp-estado-api-slx33vbj.azurewebsites.net` y la ruta `PUT /api/estado/{zone_id}`. El cuerpo y los estados permitidos están en [el contrato](../contracts/external.md). El portal público es `https://mango-ground-073e60210.3.azurestaticapps.net` para enlazarlo desde Amplify si lo desean.
+2. La **clave de la Function** `actualizar_estado`, llamada `aws-publisher`, por un canal privado. Es el valor de la cabecera `x-functions-key`; no es la clave de despliegue de Static Web Apps. Deben guardarla en SSM como `azure/api_key` y guardar la URL base como `azure/base_url`. Si la clave se expone, hay que rotarla y actualizar SSM.
+3. Implementar y probar `PublicadoraHaciaAzure` desde `ColaAzure`: `zone_id` estable, `updated_at` en UTC con zona horaria y creciente para cada zona, `status` en `SIN_INCIDENTE | EVALUACION | CONFIRMADO | RESTABLECIDO`, `priority` en `P1 | P2 | P3` o nula, y uno de los cuatro mensajes públicos exactos: `Sin incidencias`, `Evaluando`, `Incidencia identificada`, `Servicio restablecido`. `CERRADO` de AWS se traduce a `SIN_INCIDENTE`. No se envían PII ni texto libre de clientes.
+4. Acordar un **refresco periódico por zona**. El portal avisa si `last_synced_at` supera 10 minutos y Azure solo actualiza esa marca cuando recibe una versión con `updated_at` posterior. Si AWS envía exclusivamente `incident.updated`, una zona sin cambios aparecerá desactualizada. Una opción es publicar una instantánea o latido por zona cada menos de 10 minutos con `updated_at` nuevo; antes de hacerlo debemos definir si ese campo representa el momento de publicación o el del cambio operacional. Hasta acordarlo, la advertencia de antigüedad es esperable.
+
+Del equipo AWS necesitamos también la lista definitiva de `zone_id` del catálogo y una carga de prueba sin datos personales. Cuando su Lambda esté conectada, verificaremos el flujo `ColaAzure → PublicadoraHaciaAzure → PUT → EstadoZonas → GET → portal` y los reintentos/DLQ ante un error de Azure.
+
+Azure no requiere hoy ninguna credencial ni URL de GCP. Si el equipo de Grafana quiere recibir telemetría de Azure, debe acordar con nosotros qué métricas observar y entregar por canal privado el endpoint OTLP y su token; esa exportación es una integración adicional y todavía no está implementada. Solo se comparten con Grafana métricas sin PII.
