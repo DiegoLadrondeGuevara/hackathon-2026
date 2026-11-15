@@ -2,7 +2,7 @@
 external: true      # true cuando GCP esté listo (activa la regla y el consumidor de ColaGCP)
 azure: true         # true cuando Azure esté listo (activa la regla y el consumidor de ColaAzure)
 emailMode: SNS       # SIMULATED (solo registra) | SES (remitentes verificados) | SNS (tema notificaciones-clientes)
-smsMode: SIMULATED   # SNS cuando AWS Academy permita enviar SMS
+smsMode: TWILIO_TRIAL # SIMULATED | TWILIO (cuenta de pago, textos propios) | TWILIO_TRIAL (plantillas fijas de la cuenta de prueba)
 generator: true   # false para pausar el simulador de antenas y ahorrar créditos
 grafana: true       # false para dejar de enviar métricas a Grafana Cloud (cada 5 minutos)
 opsEmail: 'rodricar9942@gmail.com'         # correo del equipo para las alertas internas (SNS); vacío = sin suscripción

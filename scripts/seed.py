@@ -9,9 +9,12 @@ Escribe en `red-telecorp-<stage>-NetworkCatalog` y `red-telecorp-<stage>-Custome
 Es idempotente: el catálogo se reescribe igual y los perfiles que ya existen no se tocan
 (ni el hash ni `created_at`). Con --force los perfiles se reescriben, por ejemplo para cambiar la clave.
 La contraseña sale solo de la variable de entorno SEED_DEMO_PASSWORD y nunca se imprime.
+Con --telefono-demo +51999888777 el cliente 70000003 (o --cliente-demo) queda con ese teléfono, preferencia SMS
+y consentimiento de SMS, para probar el SMS real; los demás clientes siguen sin consentimiento de SMS.
 """
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -143,11 +146,30 @@ def put_profile(table, item: dict, force: bool) -> bool:
         raise
 
 
+def enable_demo_sms(table, customer_id: str, phone: str) -> None:
+    """Deja a un cliente de demo con un teléfono real, preferencia SMS y consentimiento de SMS."""
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", phone):
+        raise SystemExit("--telefono-demo debe estar en formato internacional, por ejemplo +51999888777")
+    try:
+        table.update_item(
+            Key={"pk": f"CUSTOMER#{customer_id}", "sk": "PROFILE"},
+            UpdateExpression="SET phone = :p, channel_pref = :c, consent_sms = :t, consent_at = :now",
+            ConditionExpression="attribute_exists(pk)",
+            ExpressionAttributeValues={":p": phone, ":c": "SMS", ":t": True, ":now": ids.now_iso()},
+        )
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            raise SystemExit(f"El cliente {customer_id} no existe") from None
+        raise
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", default="dev")
     ap.add_argument("--region", default="us-east-1")
     ap.add_argument("--force", action="store_true", help="Reescribir los perfiles que ya existen")
+    ap.add_argument("--telefono-demo", help="Teléfono real (+51...) del cliente de demo de SMS; no se guarda")
+    ap.add_argument("--cliente-demo", default="70000003", help="Cliente de demo de SMS (por defecto 70000003)")
     args = ap.parse_args(argv)
 
     password = os.environ.get(PASSWORD_ENV, "")
@@ -169,6 +191,9 @@ def main(argv=None) -> None:
     items += [customer_item(n, password, now) for n in range(1, len(CUSTOMER_NAMES) + 1)]
     written = sum(put_profile(profiles, item, args.force) for item in items)
     print(f"{profiles.name}: {written} perfiles escritos, {len(items) - written} ya existían")
+    if args.telefono_demo:
+        enable_demo_sms(profiles, args.cliente_demo, args.telefono_demo)
+        print(f"Cliente {args.cliente_demo}: preferencia SMS con consentimiento (teléfono de demo configurado)")
 
 
 if __name__ == "__main__":

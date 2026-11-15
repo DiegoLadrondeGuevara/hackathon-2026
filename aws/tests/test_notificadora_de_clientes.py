@@ -1,10 +1,11 @@
 """T12: notificadora_de_clientes."""
+import base64
 import json
 
 import boto3
 import pytest
 
-from common import ddb, ids, pii
+from common import ddb, ids, outbound, pii
 from handlers import notificadora_de_clientes as notif
 
 INCIDENTE = "I0000000000000000000000001"
@@ -359,3 +360,162 @@ def test_el_modo_sms_sigue_independiente_del_correo_por_sns(correo_sns, monkeypa
     _vinculo("70000001")
     _run(_actualizado())
     assert _notify_items()["NOTIFY#CONFIRMADO#70000001"]["channel"] == "SIMULATED"
+
+
+# --- SMS por Twilio (SMS_MODE=TWILIO) ---
+
+SID_TWILIO, TOKEN_TWILIO, DESDE = "ACtest0000000000000000000000000000", "token-secreto-de-prueba", "+15005550006"
+
+
+@pytest.fixture
+def twilio(aws, monkeypatch):
+    """SMS_MODE=TWILIO con credenciales en SSM y la API de Twilio simulada. Devuelve la lista de llamadas."""
+    monkeypatch.setenv("SMS_MODE", "TWILIO")
+    ssm = boto3.client("ssm")
+    for key, value, kind in (("account_sid", SID_TWILIO, "String"), ("auth_token", TOKEN_TWILIO, "SecureString"),
+                             ("from_number", DESDE, "String")):
+        ssm.put_parameter(Name=f"/red-telecorp/test/twilio/{key}", Value=value, Type=kind)
+    llamadas = []
+
+    def falso(url, fields, headers=None, timeout=10):
+        llamadas.append({"url": url, "fields": fields, "headers": headers, "timeout": timeout})
+        return {"sid": "SM0123456789", "status": "queued"}
+
+    monkeypatch.setattr(outbound, "post_form", falso)
+    return llamadas
+
+
+def _cliente_sms(customer="70000001"):
+    _perfil(customer, pref="SMS", email=False, sms=True)
+    _vinculo(customer)
+
+
+def test_sms_por_twilio_envia_el_formulario_con_autenticacion_basic(twilio):
+    _cliente_sms()
+    assert _run(_actualizado("CONFIRMADO"))["batchItemFailures"] == []
+    (llamada,) = twilio
+    assert llamada["url"] == f"https://api.twilio.com/2010-04-01/Accounts/{SID_TWILIO}/Messages.json"
+    assert llamada["headers"] == {
+        "Authorization": "Basic " + base64.b64encode(f"{SID_TWILIO}:{TOKEN_TWILIO}".encode()).decode()}
+    assert llamada["fields"] == {"To": "+51999000111", "From": DESDE,
+                                 "Body": notif._sms_text(notif.TEMPLATES["CONFIRMADO"])}
+    item = _notify_items()["NOTIFY#CONFIRMADO#70000001"]
+    assert (item["status"], item["channel"], item["message_id"]) == ("SENT", "SMS", "SM0123456789")
+
+
+def test_sms_solo_lleva_telefono_remitente_y_texto(twilio):
+    _cliente_sms()
+    _run(_actualizado())
+    campos = twilio[0]["fields"]
+    assert set(campos) == {"To", "From", "Body"}
+    assert "70000001" not in json.dumps(campos) and "example.com" not in json.dumps(campos)
+
+
+def test_los_textos_del_sms_caben_en_160_caracteres_sin_tildes():
+    for hito, texto in notif.TEMPLATES.items():
+        sms = notif._sms_text(texto)
+        assert all(ord(c) < 128 or c in "ñÑ" for c in sms), hito
+        assert len(sms) + len("Sent from your Twilio trial account - ") <= 160, hito
+    con_tildes, sin_tildes = "Está trabajando. Ñandú", "Esta trabajando. Ñandu"
+    assert notif._sms_text(con_tildes) == sin_tildes
+
+
+@pytest.mark.parametrize("telefono,valido", [("+51900000099", True), ("+15005550006", True), ("900000099", False),
+                                             ("+0123456789", False), ("+51 956 839 954", False), ("", False),
+                                             ("+519000000991234567", False)])
+def test_el_telefono_debe_estar_en_formato_e164(telefono, valido):
+    perfil = {"channel_pref": "SMS", "consent_sms": True, "phone": telefono}
+    assert (notif._channel(perfil) == "SMS") is valido
+
+
+def test_telefono_invalido_no_envia_y_cae_al_otro_canal(twilio):
+    ddb.table("CustomerProfiles").put_item(Item={
+        "pk": "CUSTOMER#70000001", "sk": "PROFILE", "type": "CUSTOMER", "customer_id": "70000001",
+        "channel_pref": "SMS", "consent_sms": True, "phone": "900000099", "consent_email": True,
+        "email": "a@example.com"})
+    _vinculo("70000001")
+    _run(_actualizado())
+    assert twilio == [] and _notify_items()["NOTIFY#CONFIRMADO#70000001"]["channel"] == "SIMULATED"
+
+
+@pytest.mark.parametrize("valor", [None, "PENDIENTE"])
+def test_sin_credenciales_de_twilio_falla_y_reintenta(aws, monkeypatch, valor):
+    monkeypatch.setenv("SMS_MODE", "TWILIO")
+    ssm = boto3.client("ssm")
+    if valor:
+        for key, kind in (("account_sid", "String"), ("auth_token", "SecureString"), ("from_number", "String")):
+            ssm.put_parameter(Name=f"/red-telecorp/test/twilio/{key}", Value=valor, Type=kind)
+    _cliente_sms()
+    assert _fallos(_run(_actualizado())) == ["m1"]
+    item = _notify_items()["NOTIFY#CONFIRMADO#70000001"]
+    assert (item["status"], item["error"], item["attempts"]) == ("FAILED", "TwilioNotConfigured", 1)
+
+
+def test_error_de_twilio_se_reintenta_hasta_tres_veces_sin_filtrar_secretos(twilio, monkeypatch, caplog):
+    def falla(*args, **kwargs):
+        raise outbound.OutboundError("Fallo del servicio externo")
+
+    monkeypatch.setattr(outbound, "post_form", falla)
+    _cliente_sms()
+    with caplog.at_level("INFO"):
+        assert _fallos(_run(_actualizado())) == ["m1"]
+        assert _fallos(_run(_actualizado())) == ["m1"]
+        assert _fallos(_run(_actualizado())) == []  # tercer intento: ya no se reintenta
+    item = _notify_items()["NOTIFY#CONFIRMADO#70000001"]
+    assert (item["status"], item["error"], item["attempts"]) == ("FAILED", "TwilioError", 3)
+    for secreto in (SID_TWILIO, TOKEN_TWILIO, "+51999000111"):
+        assert secreto not in caplog.text and secreto not in json.dumps(item, default=str)
+    assert "70000001" not in caplog.text  # el documento solo vive en la tabla, nunca en los logs
+
+
+def test_respuesta_de_twilio_sin_sid_es_un_fallo(twilio, monkeypatch):
+    monkeypatch.setattr(outbound, "post_form", lambda *a, **k: {"status": "queued"})
+    _cliente_sms()
+    assert _fallos(_run(_actualizado())) == ["m1"]
+    assert _notify_items()["NOTIFY#CONFIRMADO#70000001"]["error"] == "TwilioInvalidResponse"
+
+
+def test_un_cliente_sin_consentimiento_de_sms_no_recibe_sms(twilio):
+    _perfil("70000001", pref="SMS", email=False, sms=False)
+    _vinculo("70000001")
+    _run(_actualizado())
+    assert twilio == [] and _notify_items()["NOTIFY#CONFIRMADO#70000001"]["status"] == "SKIPPED"
+
+
+def test_el_aviso_se_envia_una_sola_vez_por_cliente_e_hito(twilio):
+    _cliente_sms()
+    _run(_actualizado("CONFIRMADO", "m1"), _actualizado("CONFIRMADO", "m2"), _vinculado("70000001", "CONFIRMADO", "m3"))
+    assert len(twilio) == 1
+
+
+def test_twilio_trial_envia_el_nombre_de_la_plantilla_de_cada_hito(twilio, monkeypatch):
+    monkeypatch.setenv("SMS_MODE", "TWILIO_TRIAL")
+    _cliente_sms()
+    for hito in ("EVALUACION", "CONFIRMADO", "RESTABLECIDO"):
+        assert _run(_actualizado(hito, f"m-{hito}"))["batchItemFailures"] == []
+    cuerpos = [c["fields"]["Body"] for c in twilio]
+    assert cuerpos == ["sms_customer_support", "sms_internal_alerts", "sms_feedback_surveys"]
+    assert {c["fields"]["To"] for c in twilio} == {"+51999000111"}
+    for hito in ("EVALUACION", "CONFIRMADO", "RESTABLECIDO"):
+        item = _notify_items()[f"NOTIFY#{hito}#70000001"]
+        assert (item["status"], item["channel"], item["message_id"]) == ("SENT", "SMS", "SM0123456789")
+
+
+def test_twilio_trial_no_envia_nuestros_textos_ni_datos_del_cliente(twilio, monkeypatch):
+    monkeypatch.setenv("SMS_MODE", "TWILIO_TRIAL")
+    _cliente_sms()
+    _run(_actualizado("CONFIRMADO"))
+    campos = twilio[0]["fields"]
+    assert set(campos) == {"To", "From", "Body"} and campos["Body"].startswith("sms_")
+    assert notif.TEMPLATES["CONFIRMADO"] not in json.dumps(campos) and "70000001" not in json.dumps(campos)
+
+
+def test_las_plantillas_de_prueba_cubren_todos_los_hitos():
+    assert set(notif.TWILIO_TRIAL_TEMPLATES) == set(notif.TEMPLATES)
+    assert all(n.startswith("sms_") and n == n.lower() for n in notif.TWILIO_TRIAL_TEMPLATES.values())
+
+
+def test_el_modo_twilio_con_cuenta_de_pago_sigue_enviando_nuestro_texto(twilio):
+    _cliente_sms()
+    _run(_actualizado("RESTABLECIDO"))
+    assert twilio[0]["fields"]["Body"] == notif._sms_text(notif.TEMPLATES["RESTABLECIDO"])

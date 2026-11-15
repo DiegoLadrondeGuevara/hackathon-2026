@@ -139,3 +139,38 @@ def test_no_imprime_la_clave_ni_usa_float(seed, capsys):
     assert PASSWORD not in capsys.readouterr().out
     items = seed.zone_items() + seed.antenna_items() + [seed.customer_item(1, PASSWORD, "2026-11-14T00:00:00.000Z")]
     assert not any(has_float(item) for item in items)
+
+
+def _perfil(cliente: str) -> dict:
+    return ddb.table("CustomerProfiles").get_item(Key={"pk": f"CUSTOMER#{cliente}", "sk": "PROFILE"})["Item"]
+
+
+def test_telefono_demo_habilita_sms_solo_en_un_cliente(seed):
+    seed.main([*ARGS, "--telefono-demo", "+51999888777"])
+    demo = _perfil("70000003")
+    assert (demo["phone"], demo["channel_pref"], demo["consent_sms"]) == ("+51999888777", "SMS", True)
+    otros = [c for c in scan("CustomerProfiles") if c["type"] == "CUSTOMER" and c["customer_id"] != "70000003"]
+    assert len(otros) == 19 and not any(c["consent_sms"] for c in otros)
+    assert all(c["channel_pref"] == "EMAIL" for c in otros)
+
+
+def test_sin_telefono_demo_nadie_tiene_consentimiento_de_sms(seed):
+    seed.main(ARGS)
+    assert not any(c["consent_sms"] for c in scan("CustomerProfiles") if c["type"] == "CUSTOMER")
+
+
+def test_telefono_demo_en_otro_cliente_y_repetido(seed):
+    seed.main([*ARGS, "--telefono-demo", "+51999888777", "--cliente-demo", "70000005"])
+    seed.main([*ARGS, "--telefono-demo", "+51999888777", "--cliente-demo", "70000005"])  # idempotente
+    assert _perfil("70000005")["consent_sms"] is True and _perfil("70000003")["consent_sms"] is False
+
+
+@pytest.mark.parametrize("telefono", ["999888777", "+0999888777", "+51 999 888 777", "abc"])
+def test_telefono_demo_invalido_se_rechaza_sin_escribir(seed, telefono):
+    with pytest.raises(SystemExit, match="formato internacional"):
+        seed.main([*ARGS, "--telefono-demo", telefono])
+
+
+def test_cliente_demo_inexistente_se_rechaza(seed):
+    with pytest.raises(SystemExit, match="no existe"):
+        seed.main([*ARGS, "--telefono-demo", "+51999888777", "--cliente-demo", "70009999"])
