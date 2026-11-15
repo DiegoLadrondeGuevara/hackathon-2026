@@ -39,7 +39,7 @@ Tablas: R Reports, I Incidents, T Telemetry, M CorrelationMembers, N NetworkCata
 | PublicadoraHaciaAzure | publicadora_hacia_azure | ColaAzure | — | SSM azure, HTTPS |
 
 ## Colas
-Cada cola con DLQ (`maxReceiveCount` 5). Visibility timeout 180 s (6 × el timeout de 30 s de los consumidores). Mapeo de eventos con `ReportBatchItemFailures` activado. Tamaño de lote 10.
+Cada cola con DLQ (`maxReceiveCount` 3). Visibility timeout 180 s (6 × el timeout de 30 s de los consumidores). Mapeo de eventos con `ReportBatchItemFailures` activado. Tamaño de lote 10.
 Colas: ColaReportes, ColaAnomalias, ColaMetricas, ColaNotificaciones, ColaGCP, ColaAzure.
 
 ## Stream de Outbox

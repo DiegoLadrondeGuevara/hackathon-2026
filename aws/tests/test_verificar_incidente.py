@@ -305,19 +305,30 @@ def alertas(aws, monkeypatch):
 
 
 def test_alerta_de_incidente(alertas):
-    _incidente(status="CONFIRMADO", priority="P1", score=11, antenna_ids={"A013"}, review_required=True)
+    _incidente(status="CONFIRMADO", priority="P1", score=11, antenna_ids={"A014", "A013"}, review_required=True,
+               recommended_action="Revisión estructural de la antena")
     _usuarios(2)
     calc = {"priority": "P1", "priority_changed": True, "status_changed": True, "alert": True}
     resp = alertadora.handler({"mode": "incident", "incident_id": IID, "calc": calc}, None)
     assert resp["published"] is True and resp["message_id"]
 
     (msg,) = alertas()
-    assert msg["Subject"] == "[P1] Incidente Z05 INTERNET: CONFIRMADO"
-    body = json.loads(msg["Message"])
-    assert body["kind"] == "INCIDENT_ALERT" and body["calc"] == calc
-    assert body["incident"]["incident_id"] == IID and body["incident"]["affected_users"] == 2
-    assert body["incident"]["antenna_ids"] == ["A013"] and body["incident"]["review_required"] is True
+    assert msg["Subject"] == "[P1] Incidente CONFIRMADO en Z05"
+    lines = msg["Message"].splitlines()
+    assert f"Incidente: {IID}" in lines and "Zona: Z05" in lines and "Servicio: INTERNET" in lines
+    assert "Prioridad: P1" in lines and "Estado: CONFIRMADO" in lines
+    assert "Antenas: A013, A014" in lines
+    assert "Acción recomendada: Revisión estructural de la antena" in lines
+    assert "Clientes afectados: 2" in lines
     assert "7000" not in msg["Message"] and "gsi1pk" not in msg["Message"]  # sin clientes ni claves internas
+
+
+def test_alerta_de_incidente_sin_antenas_ni_accion(alertas):
+    _incidente(status="EVALUACION", priority="P3", score=1)
+    alertadora.handler({"mode": "incident", "incident_id": IID}, None)
+    (msg,) = alertas()
+    assert msg["Subject"] == "[P3] Incidente EVALUACION en Z05"
+    assert "Antenas: ninguna" in msg["Message"] and "Acción recomendada: ninguna" in msg["Message"]
 
 
 def test_alerta_de_falla(alertas):

@@ -57,7 +57,7 @@ Entrada: `{"incident_id": "...", "trigger_event_id": "...", "change": "..."}`.
    - `recommended_action`: `tech_recovered` y CONFIRMADO → "Evaluar restablecimiento"; `structural_suspect` → "Revisión estructural de la antena"; solo usuarios y EVALUACION → "Verificar infraestructura de la zona"; si no, nulo. Nunca cierra ni restablece solo.
    - `alert = true` si la prioridad nueva es P1, si pasó a CONFIRMADO o si `review_required`.
 3. `RequiereAlerta` (Choice): `alert` true → `AlertarOperaciones`; si no → `Succeed`.
-4. `AlertarOperaciones` (`AlertadoraDeOperaciones`, entrada `{"mode":"incident","incident_id","calc"}`): publica en `alertas-operaciones` (SNS) un resumen JSON del incidente.
+4. `AlertarOperaciones` (`AlertadoraDeOperaciones`, entrada `{"mode":"incident","incident_id","calc"}`): publica en `alertas-operaciones` (SNS) un correo de texto del incidente: asunto `[<prioridad>] Incidente <estado> en <zona>` y cuerpo con zona, servicio, prioridad, estado, antenas y acción recomendada (sin datos personales).
 5. Retry en cada tarea: `Lambda.ServiceException`, `Lambda.TooManyRequestsException`, 3 intentos, backoff 2. Catch general → `AlertarFalla` (la misma Lambda con `{"mode":"failure","incident_id","error"}`) → `Fail`.
 
 ## CambiarEstadoReporte / CambiarEstadoIncidente (rol OPERATOR)
