@@ -1,4 +1,4 @@
-"""GeneradoraDeMetricasYLotes: simulador de antenas, cada minuto. Ver contracts/flows.md.
+"""GeneradoraDeMetricasYLotes: simulador de antenas, cada minuto.
 
 Lee las antenas del catálogo, genera `gb_per_min` entre 85% y 115% de `nominal_gb`, aplica
 `SCENARIO#ACTIVE` si no expiró, escribe `metrics/<fecha>/<HH-MM>.jsonl` en S3 y avisa por ColaMetricas.

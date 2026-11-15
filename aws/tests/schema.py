@@ -1,4 +1,4 @@
-"""Espejo de contracts/tables.md para crear las tablas en pruebas (moto).
+"""Espejo del modelo de datos para crear las tablas en pruebas (moto).
 Si cambia el contrato de tablas, se cambia aquí en el mismo commit."""
 
 # tabla -> lista de (nombre_gsi, atributo_pk, atributo_sk)

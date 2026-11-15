@@ -1,4 +1,4 @@
-# Recursos de AWS. Las tablas siguen contracts/tables.md y aws/tests/schema.py.
+# Recursos de AWS. Las tablas siguen aws/tests/schema.py.
 Conditions:
   ExternalOn: !Equals ['${self:custom.flags.external}', 'true']
   HasOpsEmail: !Not [!Equals ['${self:custom.flags.opsEmail}', '']]

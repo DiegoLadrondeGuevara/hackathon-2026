@@ -1,4 +1,4 @@
-"""ListarIncidentesZona: GET /incidentes y GET /incidentes/{incident_id}. Ver contracts/api.md.
+"""ListarIncidentesZona: GET /incidentes y GET /incidentes/{incident_id}.
 
 Lista: `?zone_id=` para cualquiera (CUSTOMER recibe la vista pública, sin CERRADO; OPERATOR el META
 completo), más reciente primero. `?status=` solo OPERATOR: cola por prioridad (`GSI2-queue`); admite

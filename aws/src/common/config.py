@@ -4,7 +4,7 @@ from functools import cache
 
 import boto3
 
-# Nombre lógico -> variable de entorno con el nombre físico (ver contracts/infra.md)
+# Nombre lógico -> variable de entorno con el nombre físico
 TABLES = {
     "Reports": "TABLE_REPORTS",
     "Incidents": "TABLE_INCIDENTS",

@@ -1,4 +1,4 @@
-"""VerificadoraDeEvidencias: ramas del Parallel de `VerificarIncidente`. Ver contracts/flows.md.
+"""VerificadoraDeEvidencias: ramas del Parallel de `VerificarIncidente`.
 
 Entrada directa `{"incident_id", "mode"}` con `mode` = users | antennas. Solo lectura, así que
 repetir la ejecución no cambia nada.

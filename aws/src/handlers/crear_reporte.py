@@ -1,4 +1,4 @@
-"""CrearReporte: POST /reportes (rol CUSTOMER). Ver contracts/flows.md.
+"""CrearReporte: POST /reportes (rol CUSTOMER).
 
 Una transacción: REPORT_META + REPORT_HIST + Outbox `report.created` (+ IDEMPOTENCY si viene
 la cabecera `Idempotency-Key`). Si la clave ya existía se devuelve 200 con el reporte original.
@@ -12,7 +12,7 @@ from common import ddb, events, http, ids
 
 log = logging.getLogger()
 
-# Enumeraciones de contracts/tables.md
+# Enumeraciones del modelo de datos
 SERVICES = ("MOVIL", "INTERNET")
 PROBLEM_TYPES = ("SIN_SENAL", "SIN_INTERNET", "LLAMADAS", "SMS", "LENTITUD", "OTRO")
 

@@ -1,4 +1,4 @@
-# Máquina de estados VerificarIncidente (Standard). Contrato: contracts/flows.md
+# Máquina de estados VerificarIncidente (Standard).
 validate: true
 stateMachines:
   VerificarIncidente:

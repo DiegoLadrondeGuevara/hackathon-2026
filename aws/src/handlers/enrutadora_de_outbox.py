@@ -1,6 +1,6 @@
 """EnrutadoraDeOutbox: stream de la tabla Outbox -> bus de EventBridge.
 
-Es la única Lambda que llama a `PutEvents` (contracts/events.md). Solo publica registros INSERT.
+Es la única Lambda que llama a `PutEvents`. Solo publica registros INSERT.
 Si `PutEvents` rechaza alguna entrada se lanza un error: el stream reintenta el lote (con bisección)
 y al agotar los reintentos va a la DLQ. Un reintento puede repetir eventos ya publicados; los
 consumidores son idempotentes por `event_id`.

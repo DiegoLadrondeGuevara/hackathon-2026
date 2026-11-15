@@ -1,4 +1,4 @@
-"""ObtenerTendencias: GET /tendencias?days=30 (solo OPERATOR). Ver contracts/api.md.
+"""ObtenerTendencias: GET /tendencias?days=30 (solo OPERATOR).
 
 Consulta por zona (12 zonas) los índices por zona de Reports, Incidents y Telemetry desde `now - days`.
 Sin Scan. Los episodios se leen desde `now - max(days, 7)` para calcular la recurrencia de 7 días.

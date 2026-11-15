@@ -1,4 +1,4 @@
-"""CorrelacionadoraDeAnomalias: consume `telemetry.*` de ColaAnomalias. Ver contracts/flows.md.
+"""CorrelacionadoraDeAnomalias: consume `telemetry.*` de ColaAnomalias.
 
 - `telemetry.anomaly`: vincula la antena al incidente activo de la zona (el ANY, o el único de reportes)
   o crea uno `origin=TELEMETRIA`, `service=ANY` (con `review_required` si había dos o más de reportes).

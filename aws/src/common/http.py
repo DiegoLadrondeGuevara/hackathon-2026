@@ -98,7 +98,7 @@ def path_param(event, name: str) -> str:
 
 
 def page_limit(event) -> int:
-    """`?limit=`: por defecto 20, máximo 100 (contracts/api.md)."""
+    """`?limit=`: por defecto 20, máximo 100."""
     raw = query_param(event, "limit")
     if raw is None or raw == "":
         return DEFAULT_LIMIT

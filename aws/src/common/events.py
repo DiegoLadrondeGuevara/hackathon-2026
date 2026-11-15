@@ -1,4 +1,4 @@
-"""Eventos de dominio: sobre estándar y operación de escritura en Outbox (ver contracts/events.md)."""
+"""Eventos de dominio: sobre estándar y operación de escritura en Outbox."""
 from . import ddb, ids, jsonutil
 
 SOURCE = "red-telecorp"

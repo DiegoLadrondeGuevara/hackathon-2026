@@ -1,7 +1,7 @@
 """Autenticación: hash de contraseñas con scrypt y JWT HS256, solo con stdlib.
 
-Formato del hash (contracts/tables.md): `scrypt$<n>$<r>$<p>$<salt_b64>$<hash_b64>`.
-Claims del token (contracts/flows.md): sub, role, iss, iat, exp (15 min).
+Formato del hash: `scrypt$<n>$<r>$<p>$<salt_b64>$<hash_b64>`.
+Claims del token: sub, role, iss, iat, exp (15 min).
 """
 import base64
 import hashlib

@@ -1,4 +1,4 @@
-"""CorrelacionadoraDeReportes: consume `report.created` de ColaReportes. Ver contracts/flows.md.
+"""CorrelacionadoraDeReportes: consume `report.created` de ColaReportes.
 
 Por cada reporte: actualiza el MEMBER del grupo (zona, servicio); si el grupo tiene incidente activo
 vincula el reporte; si no, y hay 10 clientes distintos en 24 h, crea el incidente (con el puntero

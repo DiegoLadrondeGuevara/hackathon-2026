@@ -1,4 +1,4 @@
-"""CambiarEstadoReporte: PATCH /reportes/{report_id}/estado (rol OPERATOR). Ver contracts/flows.md.
+"""CambiarEstadoReporte: PATCH /reportes/{report_id}/estado (rol OPERATOR).
 
 Valida la transición con `domain` y, en una transacción con `version`, actualiza META, agrega
 REPORT_HIST y el evento `report.status_changed` en Outbox. Transición inválida: 409.

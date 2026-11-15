@@ -7,4 +7,3 @@ __pycache__/
 .venv/
 .serverless/
 node_modules/
-.claude/settings.local.json

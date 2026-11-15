@@ -152,4 +152,4 @@ def zone_summary(zone_id, days, deadline, bq=None):
         "incidents_by_priority": [dict(v.items()) for v in row["incidents_by_priority"]],
         "anomaly_antennas": [dict(v.items()) for v in row["anomaly_antennas"]],
         "detection_lag_seconds": None,
-    }  # Not transmitted by contracts/events.md; never fabricate it.
+    }  # Not transmitted in the event payload; never fabricate it.

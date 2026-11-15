@@ -1,6 +1,6 @@
 """AutenticarUsuario: POST /auth/login (público).
 
-Busca el perfil como CUSTOMER y luego como OPERATOR (contracts/tables.md), verifica la clave
+Busca el perfil como CUSTOMER y luego como OPERATOR, verifica la clave
 con scrypt y emite un JWT HS256. Usuario inexistente y clave incorrecta responden igual.
 """
 from common import auth, ddb, http

@@ -1,4 +1,4 @@
-"""CambiarEstadoIncidente: PATCH /incidentes/{incident_id}/estado (rol OPERATOR). Ver contracts/flows.md.
+"""CambiarEstadoIncidente: PATCH /incidentes/{incident_id}/estado (rol OPERATOR).
 
 Valida la transición con `domain` y, en una transacción con `version`, actualiza META (y gsi2), agrega
 INCIDENT_HIST y el evento `incident.updated` (`change=STATUS`). RESTABLECIDO fija `restored_at`; CERRADO

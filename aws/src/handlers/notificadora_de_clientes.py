@@ -1,4 +1,4 @@
-"""NotificadoraDeClientes: consume ColaNotificaciones (T12). Ver contracts/flows.md.
+"""NotificadoraDeClientes: consume ColaNotificaciones (T12).
 
 `incident.updated` con hito: avisa a todos los clientes vinculados al incidente (`LINK#USER#*`).
 `report.linked`: avisa al cliente del evento si el incidente está en un hito.

@@ -1,4 +1,4 @@
-"""ClasificadoraDeMetricas: consume los lotes de ColaMetricas. Ver contracts/flows.md.
+"""ClasificadoraDeMetricas: consume los lotes de ColaMetricas.
 
 Mensaje `{"bucket","key"}`; cada línea del archivo es `{"antenna_id","ts","gb_per_min"}`. Por antena y
 en orden de `ts` clasifica la lectura, abre, escala o cierra el episodio y actualiza LAST. Cada lectura
@@ -86,7 +86,7 @@ def _get(pk: str, sk: str) -> dict | None:
 
 
 def _episodes_7d(pk: str, ts: str) -> int:
-    """Episodios de la antena abiertos en los últimos 7 días (ver contracts/tables.md)."""
+    """Episodios de la antena abiertos en los últimos 7 días."""
     since = ids.shift_iso(ts, days=-domain.RECURRENCE_DAYS)
     return len(ddb.query_all(
         "Telemetry",

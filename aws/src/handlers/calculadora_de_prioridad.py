@@ -1,4 +1,4 @@
-"""CalculadoraDePrioridad: paso `CalcularPrioridad` de `VerificarIncidente`. Ver contracts/flows.md.
+"""CalculadoraDePrioridad: paso `CalcularPrioridad` de `VerificarIncidente`.
 
 Entrada `{"incident_id", "evidence": [resultado_users, resultado_antennas]}`. Calcula la prioridad con
 `domain.priority()` y escribe en una transacción con `version` (reintenta ante conflicto). Si hay
