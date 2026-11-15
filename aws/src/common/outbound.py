@@ -1,11 +1,11 @@
-"""HTTPS JSON con límite total, sin redirecciones ni secretos en excepciones."""
+"""HTTPS (JSON o formulario) con límite total, sin redirecciones ni secretos en excepciones."""
 import json
 import queue
 import threading
 import time
 import urllib.request
 from decimal import Decimal
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from . import jsonutil
 
@@ -26,7 +26,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 urlopen = urllib.request.build_opener(_NoRedirect()).open
 
 
-def _send(method, url, body, headers, timeout):
+def _send(method, url, body, headers, timeout, form=False):
     parsed = urlsplit(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
         raise OutboundError("URL HTTPS inválida")
@@ -37,9 +37,12 @@ def _send(method, url, body, headers, timeout):
 
     def work():
         try:
+            if form:
+                data, content_type = urlencode(body).encode(), "application/x-www-form-urlencoded"
+            else:
+                data, content_type = jsonutil.dumps(body).encode(), "application/json"
             request = urllib.request.Request(
-                url, data=jsonutil.dumps(body).encode(), method=method,
-                headers={**(headers or {}), "Content-Type": "application/json"},
+                url, data=data, method=method, headers={**(headers or {}), "Content-Type": content_type},
             )
             with urlopen(request, timeout=timeout) as response:
                 if not 200 <= response.status < 300:
@@ -70,3 +73,8 @@ def post_json(url, body, headers=None, timeout=10):
 
 def put_json(url, body, headers=None, timeout=10):
     return _send("PUT", url, body, headers, timeout)
+
+
+def post_form(url, fields, headers=None, timeout=10):
+    """POST application/x-www-form-urlencoded (p. ej. la API de Twilio). `fields` es un dict de texto."""
+    return _send("POST", url, fields, headers, timeout, form=True)

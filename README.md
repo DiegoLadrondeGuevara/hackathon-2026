@@ -84,7 +84,7 @@ Se editan y se vuelve a desplegar.
 |---|---|---|
 | `external` | `false` | `true` activa las reglas y colas hacia GCP y Azure. |
 | `emailMode` | `SNS` | `SNS` publica los avisos en un tema de SNS al que se suscriben correos reales; `SES` envía por SES (no disponible en Academy); `SIMULATED` solo registra. |
-| `smsMode` | `SIMULATED` | `SNS` envía SMS reales (depende de los permisos de la cuenta). |
+| `smsMode` | `SIMULATED` | `TWILIO` envía SMS reales por la API de Twilio (con una cuenta de pago); `SNS` no está disponible en Academy; `SIMULATED` solo registra. |
 | `generator` | `true` | `false` pausa el simulador de antenas y ahorra créditos. |
 | `grafana` | `true` | `false` deja de enviar métricas a Grafana Cloud (cada 5 minutos). |
 | `opsEmail` | correo | Suscripción de las alertas internas del equipo. Vacío = sin suscripción. |
@@ -99,7 +99,7 @@ Siempre se guarda la intención y el resultado de cada aviso en la tabla `Incide
 | `scripts/smoke.py` | Login, crear reporte (con idempotencia), listar, consultar e incidente colectivo con 10 clientes. |
 | `scripts/scenario.py` | `activar --antena A004=0 --minutos 10`, `ver`, `limpiar`: fuerza fallas en antenas. A004 pertenece a Z02. Cada antena necesita 5 lecturas normales seguidas para cerrar su episodio. |
 | `scripts/load_test.py` | `--zona Z05 -n 30`: N reportes (1 hilo por defecto, máximo 4), con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
-| `scripts/seed.py` | Datos de demo, idempotente. `--force` reescribe perfiles. |
+| `scripts/seed.py` | Datos de demo, idempotente. `--force` reescribe perfiles. `--telefono-demo +51...` deja al cliente 70000003 con ese teléfono y consentimiento de SMS. |
 | `scripts/suscribir_correo.py` | `suscribir --correo x@y.com --cliente 70000001` (o `--todos`) y `listar`: suscribe un correo al tema de avisos. AWS envía un correo de confirmación que hay que abrir. |
 | `scripts/generador.py` | `estado`, `pausar`, `reanudar`: detiene el simulador de antenas sin volver a desplegar. |
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
@@ -160,7 +160,7 @@ Siete tablas `red-telecorp-<stage>-<Tabla>`, pago por uso, con claves genéricas
 | `Telemetry` | `ANTENNA_LAST`, `EPISODE` | por zona, episodios abiertos |
 | `CorrelationMembers` | `MEMBER` (clientes por grupo zona-servicio), `ACTIVE_INCIDENT` (puntero que evita duplicados) | — |
 | `NetworkCatalog` | `ZONE`, `ANTENNA`, `SCENARIO` | por tipo, por zona |
-| `CustomerProfiles` | `CUSTOMER`, `OPERATOR` (datos personales, no salen de AWS) | — |
+| `CustomerProfiles` | `CUSTOMER`, `OPERATOR` (datos personales; solo el teléfono de destino sale hacia Twilio, y solo para avisos por SMS) | — |
 | `Outbox` | eventos pendientes de publicar (Stream) | — |
 
 Todo cambio de estado es una transacción que actualiza el `META` con `version`, agrega un `HIST` y escribe el evento en `Outbox`.
@@ -188,7 +188,20 @@ python scripts/suscribir_correo.py suscribir --correo demo@dominio.com --cliente
 python scripts/suscribir_correo.py listar
 ```
 
-AWS envía un correo de confirmación: hay que abrir su enlace, y lo publicado antes de confirmar no se recupera. SES y el SMS no están disponibles en AWS Academy.
+AWS envía un correo de confirmación: hay que abrir su enlace, y lo publicado antes de confirmar no se recupera. SES y el SMS de SNS no están disponibles en AWS Academy.
+
+Con `smsMode: TWILIO` el SMS sale por la API REST de Twilio, un servicio externo al que `NotificadoraDeClientes` llama por HTTPS (formulario con autenticación Basic). Las credenciales viven en SSM (`twilio/account_sid`, `twilio/auth_token` y `twilio/from_number`) y se cargan con `python scripts/bootstrap_ssm.py --only twilio/auth_token --value-env VARIABLE --force`. A Twilio solo llegan el teléfono de destino (formato E.164) y el texto genérico del aviso, sin tildes para que quepa en un solo SMS, y solo si el cliente dio su consentimiento. **Una cuenta de prueba de Twilio solo admite plantillas fijas** (error 572006): para enviar nuestros textos hay que pasar la cuenta a pago.
+
+```mermaid
+flowchart LR
+    E[EventBridge] --> Q[ColaNotificaciones]
+    Q --> N[NotificadoraDeClientes]
+    N <--> D[(Incidents: NOTIFY)]
+    N --> P[(CustomerProfiles: canal y consentimiento)]
+    S[SSM: credenciales] -.-> N
+    N -- correo --> T[SNS notificaciones-clientes] --> M[Correo suscrito]
+    N -- SMS, HTTPS --> W[Twilio API] --> C[Celular del cliente]
+```
 
 ## Observabilidad (Grafana Cloud)
 
@@ -207,7 +220,7 @@ Usa los parámetros SSM `grafana/otlp_endpoint`, `grafana/instance_id` y `grafan
 
 - Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta. Cada cola limita su consumidor a 2 invocaciones simultáneas y agrupa mensajes en ventanas escalonadas de 2 a 13 s, para hacer menos invocaciones y que no coincidan. `load_test.py` usa 1 hilo y 0,25 s de pausa por defecto (máximo 4 hilos).
 - Antes de una prueba de carga o de grabar la demo: `python scripts/generador.py pausar`, y `reanudar` al terminar.
-- El SMS real no es posible en esta cuenta: Academy deniega las acciones de SMS (`sms-voice:*`) y no deja verificar números de destino, así que `smsMode` queda en `SIMULATED`.
+- El SMS de SNS no es posible en esta cuenta: Academy deniega las acciones de SMS (`sms-voice:*`) y no deja verificar números de destino. Por eso el SMS real se hace con Twilio, un servicio externo (`smsMode: TWILIO`).
 - Solo se pueden usar los servicios que lista el laboratorio. Amplify, CloudFront y SES no están en esa lista.
 - Si se excede el presupuesto la cuenta se deshabilita: pon `generator: false` cuando no se esté probando.
 
@@ -215,7 +228,7 @@ Usa los parámetros SSM `grafana/otlp_endpoint`, `grafana/instance_id` y `grafan
 
 - Contraseñas con scrypt y JWT HS256 firmado con la clave de SSM. El autorizador rechaza `alg` distinto de HS256 y tokens vencidos.
 - Los secretos viven en SSM Parameter Store (`SecureString`), nunca en el código ni en el repositorio.
-- Los datos personales no salen de AWS: antes de enviar a GCP o Azure se quita `customer_id` y se reemplaza por un hash con sal. Los logs no llevan datos personales.
+- Los datos personales no salen de AWS: antes de enviar a GCP o Azure se quita `customer_id` y se reemplaza por un hash con sal. La única excepción es el teléfono de destino de un SMS, que viaja a Twilio solo si el cliente dio su consentimiento. Los logs no llevan datos personales.
 - La IA es solo apoyo: si falla, el flujo principal sigue.
 
 ## GCP

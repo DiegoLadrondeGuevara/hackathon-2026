@@ -5,17 +5,21 @@
 Cada (incidente, hito, cliente) tiene una sola intención `NOTIFY#<hito>#<cliente>`, creada con
 `attribute_not_exists(pk)`; así un reintento o un evento repetido no manda dos mensajes.
 Los fallos de envío se reintentan hasta 3 veces (`batchItemFailures`). Sin datos personales en los logs.
-Correo: EMAIL_MODE = SIMULATED (solo se registra), SES o SNS (tema `notificaciones-clientes`); SMS: SMS_MODE.
+Correo: EMAIL_MODE = SIMULATED (solo se registra), SES o SNS (tema `notificaciones-clientes`).
+SMS: SMS_MODE = SIMULATED, SNS (no disponible en Academy) o TWILIO (API HTTPS de Twilio).
 """
+import base64
 import json
 import logging
 import os
+import re
+import unicodedata
 
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
-from common import config, ddb, domain, ids, pii
+from common import config, ddb, domain, ids, outbound, pii
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -29,6 +33,9 @@ TEMPLATES = {
     "RESTABLECIDO": "El servicio fue restablecido en tu zona. Si el problema continúa, vuelve a reportarlo.",
 }
 _CHANNELS = ("EMAIL", "SMS")
+_E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+_TWILIO_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+_TWILIO_TIMEOUT = 10
 _CONDITION_FAILED = "ConditionalCheckFailedException"
 
 
@@ -139,7 +146,7 @@ def _channel(profile: dict) -> str | None:
     order = [pref] if pref in _CHANNELS else []
     order += [c for c in _CHANNELS if c not in order]
     consent = {"EMAIL": profile.get("consent_email") is True and bool(profile.get("email")),
-               "SMS": profile.get("consent_sms") is True and bool(profile.get("phone"))}
+               "SMS": profile.get("consent_sms") is True and bool(_E164.match(str(profile.get("phone") or "")))}
     return next((c for c in order if consent[c]), None)
 
 
@@ -175,6 +182,35 @@ def _send_email_topic(profile: dict, text: str) -> str:
     return resp["MessageId"]
 
 
+def _sms_text(text: str) -> str:
+    """Sin tildes (salvo la ñ): así el SMS cabe en 160 caracteres y no pasa a la codificación de 70."""
+    return "".join(c if c in "ñÑ" else unicodedata.normalize("NFD", c)[0] for c in text)
+
+
+def _send_sms_twilio(profile: dict, text: str) -> str:
+    """SMS por la API de Twilio (SMS_MODE=TWILIO). Credenciales en SSM: twilio/account_sid, twilio/auth_token y
+    twilio/from_number. Solo viajan el teléfono de destino y el texto genérico del aviso."""
+    try:
+        sid, token, sender = (config.get_secret(k) for k in ("twilio/account_sid", "twilio/auth_token",
+                                                             "twilio/from_number"))
+    except Exception:
+        raise SendError("TwilioNotConfigured") from None
+    if any(not v or v == "PENDIENTE" for v in (sid, token, sender)):
+        raise SendError("TwilioNotConfigured")
+    auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    try:
+        resp = outbound.post_form(
+            _TWILIO_URL.format(sid=sid), {"To": profile["phone"], "From": sender, "Body": _sms_text(text)},
+            {"Authorization": "Basic " + auth}, timeout=_TWILIO_TIMEOUT,
+        )
+    except outbound.OutboundError:
+        raise SendError("TwilioError") from None
+    message_id = resp.get("sid") if isinstance(resp, dict) else None
+    if not isinstance(message_id, str) or not message_id:
+        raise SendError("TwilioInvalidResponse")
+    return message_id
+
+
 def _send_sms(profile: dict, text: str) -> str:
     sns = boto3.client("sns")
     try:
@@ -191,6 +227,8 @@ def _deliver(channel: str, profile: dict, text: str, modes: dict) -> tuple[str, 
     """Devuelve (canal registrado, message_id). Con SIMULATED solo se registra."""
     if channel == "EMAIL" and modes["EMAIL"] == "SNS":
         return channel, _send_email_topic(profile, text)
+    if channel == "SMS" and modes["SMS"] == "TWILIO":
+        return channel, _send_sms_twilio(profile, text)
     if modes[channel] in ("SES", "SNS"):
         send = _send_email if channel == "EMAIL" else _send_sms
         return channel, send(profile, text)

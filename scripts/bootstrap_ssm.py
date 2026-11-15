@@ -3,10 +3,14 @@
 Uso (con las credenciales de AWS Academy ya configuradas):
     python scripts/bootstrap_ssm.py --stage dev --from-address correo-verificado@dominio.com
 
-No pisa lo que ya existe, salvo con --force. Los valores PENDIENTE se reemplazan cuando GCP y Azure estén listos:
+No pisa lo que ya existe, salvo con --force. Los valores PENDIENTE se reemplazan cuando GCP, Azure,
+Grafana o Twilio estén listos:
     python scripts/bootstrap_ssm.py --stage dev --only gcp/base_url --value https://... --force
+Para una clave sin dejarla en el historial, usa una variable de entorno:
+    PowerShell:  $env:CLAVE = "..."; python scripts/bootstrap_ssm.py --only twilio/auth_token --value-env CLAVE --force
 """
 import argparse
+import os
 import secrets
 
 import boto3
@@ -24,6 +28,9 @@ PARAMS = {
     "grafana/otlp_endpoint": ("String", "PENDIENTE"),
     "grafana/instance_id": ("String", "PENDIENTE"),
     "grafana/token": ("SecureString", "PENDIENTE"),
+    "twilio/account_sid": ("String", "PENDIENTE"),
+    "twilio/auth_token": ("SecureString", "PENDIENTE"),
+    "twilio/from_number": ("String", "PENDIENTE"),
 }
 
 
@@ -52,6 +59,7 @@ def main() -> None:
     ap.add_argument("--from-address", help="Correo verificado en SES para enviar notificaciones")
     ap.add_argument("--only", help="Solo este parámetro (ej. gcp/base_url)")
     ap.add_argument("--value", help="Valor para --only")
+    ap.add_argument("--value-env", help="Nombre de una variable de entorno con el valor (no queda en el historial)")
     ap.add_argument("--force", action="store_true", help="Sobrescribir si existe")
     args = ap.parse_args()
 
@@ -59,10 +67,11 @@ def main() -> None:
     prefix = f"/red-telecorp/{args.stage}"
 
     if args.only:
-        if args.only not in PARAMS or args.value is None:
-            raise SystemExit(f"--only debe ser uno de {sorted(PARAMS)} y llevar --value")
+        value = args.value if args.value is not None else os.environ.get(args.value_env or "")
+        if args.only not in PARAMS or value is None:
+            raise SystemExit(f"--only debe ser uno de {sorted(PARAMS)} y llevar --value o --value-env definida")
         kind = PARAMS[args.only][0]
-        print(f"{prefix}/{args.only}: {put(ssm, prefix, args.only, args.value, kind, args.force)}")
+        print(f"{prefix}/{args.only}: {put(ssm, prefix, args.only, value, kind, args.force)}")
         return
 
     for key, (kind, default) in PARAMS.items():
