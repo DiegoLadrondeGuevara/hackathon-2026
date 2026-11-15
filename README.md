@@ -85,6 +85,7 @@ Se editan y se vuelve a desplegar.
 | `emailMode` | `SIMULATED` | `SES` envía correos reales (hay que verificar remitentes en SES). |
 | `smsMode` | `SIMULATED` | `SNS` envía SMS reales (depende de los permisos de la cuenta). |
 | `generator` | `true` | `false` pausa el simulador de antenas y ahorra créditos. |
+| `grafana` | `true` | `false` deja de enviar métricas a Grafana Cloud (cada 5 minutos). |
 | `opsEmail` | correo | Suscripción de las alertas internas del equipo. Vacío = sin suscripción. |
 | `pitr` | `false` | Recuperación punto en el tiempo en DynamoDB, si la cuenta lo permite. |
 
@@ -96,7 +97,7 @@ Con `SIMULATED` el envío solo se registra en la tabla `Incidents` (`NOTIFY`), s
 |---|---|
 | `scripts/smoke.py` | Login, crear reporte (con idempotencia), listar, consultar e incidente colectivo con 10 clientes. |
 | `scripts/scenario.py` | `activar --antena A004=0 --minutos 10`, `ver`, `limpiar`: fuerza fallas en antenas. A004 pertenece a Z02. Cada antena necesita 5 lecturas normales seguidas para cerrar su episodio. |
-| `scripts/load_test.py` | `--zona Z05 -n 30 --hilos 5`: N reportes en paralelo, con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
+| `scripts/load_test.py` | `--zona Z05 -n 30 --hilos 2`: N reportes en paralelo (máximo 4 hilos), con latencia p50, p95 y máxima. Detalle de opciones en el encabezado del script. |
 | `scripts/seed.py` | Datos de demo, idempotente. `--force` reescribe perfiles. |
 | `scripts/bootstrap_ssm.py` | Crea los parámetros SSM. `--only gcp/base_url --value https://... --force` actualiza uno. |
 
@@ -137,6 +138,7 @@ Las reglas viven solo en `aws/src/common/domain.py`.
 | Telemetría | `GeneradoraDeMetricasYLotes` (cada minuto), `ClasificadoraDeMetricas`, `CorrelacionadoraDeAnomalias` |
 | Incidentes | `CorrelacionadoraDeReportes`, `VerificadoraDeEvidencias`, `CalculadoraDePrioridad`, `AlertadoraDeOperaciones` (las tres últimas dentro de la máquina `VerificarIncidente`) |
 | Eventos | `EnrutadoraDeOutbox` (única que llama a `PutEvents`), `NotificadoraDeClientes`, `PublicadoraHaciaGCP`, `PublicadoraHaciaAzure` |
+| Observabilidad | `PublicadoraHaciaGrafana` (cada 5 minutos) |
 
 Todas con Python 3.11, solo biblioteca estándar y `boto3`, 256 MB y rol `LabRole`. Los handlers de colas son idempotentes (SQS entrega al menos una vez) y devuelven `batchItemFailures`. Cada cola tiene una DLQ tras 3 reintentos.
 
@@ -169,6 +171,25 @@ Sobre estándar `{"event_id","type","version","occurred_at","data"}` en el bus `
 | `incident.updated` | correlacionadoras, calculadora de prioridad, cambio de estado | verificación (Step Functions), notificaciones, GCP y Azure |
 
 La verificación se dispara con `change` en `CREATED`, `EVIDENCE`, `THRESHOLD` y `RECOVERY`. `PRIORITY` y `STATUS` no la disparan, para evitar bucles.
+
+## Observabilidad (Grafana Cloud)
+
+`PublicadoraHaciaGrafana` envía cada 5 minutos, por OTLP/HTTP JSON y sin datos personales, estas métricas con `service.name=red-telecorp-aws`:
+
+| Métrica | Atributos | Qué mide |
+|---|---|---|
+| `redtelecorp.aws.queue.messages` | `queue`, `state` (`visible`, `in_flight`) | Mensajes de cada cola. |
+| `redtelecorp.aws.dlq.messages` | `queue` | Mensajes en cada cola de fallidos (debe ser 0). |
+| `redtelecorp.aws.incidents` | `status`, `priority` | Incidentes por estado y prioridad. |
+| `redtelecorp.aws.antenna.open_episodes` | `zone` | Episodios de antena abiertos por zona. |
+
+Usa los parámetros SSM `grafana/otlp_endpoint`, `grafana/instance_id` y `grafana/token` (autenticación Basic). Si están en `PENDIENTE` no envía nada. Un fallo se registra y nunca afecta al flujo principal.
+
+## Límites del laboratorio (AWS Academy)
+
+- Máximo 10 entornos de Lambda en ejecución a la vez en toda la cuenta: cada cola limita su consumidor a 2 invocaciones simultáneas y `load_test.py` admite como máximo 4 hilos.
+- Solo se pueden usar los servicios que lista el laboratorio. Amplify, CloudFront y SES no están en esa lista.
+- Si se excede el presupuesto la cuenta se deshabilita: pon `generator: false` cuando no se esté probando.
 
 ## Seguridad y privacidad
 

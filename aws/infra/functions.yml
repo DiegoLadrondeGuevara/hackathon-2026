@@ -224,3 +224,13 @@ publicadoraHaciaAzure:
         maximumConcurrency: 2   # Academy: máx. 10 Lambdas simultáneas en la cuenta
         enabled: ${self:custom.flags.azure}
         functionResponseType: ReportBatchItemFailures
+
+# --- Observabilidad: métricas de AWS hacia Grafana Cloud (activa con flags.grafana = true) ---
+publicadoraHaciaGrafana:
+  name: ${self:custom.prefix}-PublicadoraHaciaGrafana
+  handler: src/handlers/publicadora_hacia_grafana.handler
+  timeout: 30
+  events:
+    - schedule:
+        rate: rate(5 minutes)
+        enabled: ${self:custom.flags.grafana}

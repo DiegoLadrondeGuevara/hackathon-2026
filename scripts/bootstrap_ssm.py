@@ -21,6 +21,9 @@ PARAMS = {
     "gcp/api_key": ("SecureString", "PENDIENTE"),
     "azure/base_url": ("String", "PENDIENTE"),
     "azure/api_key": ("SecureString", "PENDIENTE"),
+    "grafana/otlp_endpoint": ("String", "PENDIENTE"),
+    "grafana/instance_id": ("String", "PENDIENTE"),
+    "grafana/token": ("SecureString", "PENDIENTE"),
 }
 
 
