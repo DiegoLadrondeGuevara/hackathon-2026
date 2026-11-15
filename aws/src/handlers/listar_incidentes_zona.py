@@ -1,7 +1,8 @@
 """ListarIncidentesZona: GET /incidentes y GET /incidentes/{incident_id}. Ver contracts/api.md.
 
-Lista: `?zone_id=` para cualquiera (CUSTOMER recibe la vista pública; OPERATOR el META completo), más
-reciente primero. `?status=` solo OPERATOR: cola por prioridad (`GSI2-queue`); admite `zone_id` como filtro.
+Lista: `?zone_id=` para cualquiera (CUSTOMER recibe la vista pública, sin CERRADO; OPERATOR el META
+completo), más reciente primero. `?status=` solo OPERATOR: cola por prioridad (`GSI2-queue`); admite
+`zone_id` como filtro.
 Detalle (solo OPERATOR): META + `history` + `links` (conteos y antenas vinculadas).
 """
 from boto3.dynamodb.conditions import Attr, Key
@@ -53,6 +54,9 @@ def _list(event, role: str) -> dict:
     }
     if status and zone_id:
         kwargs["FilterExpression"] = Attr("zone_id").eq(zone_id)
+    elif role != "OPERATOR":
+        # Vista pública: sin CERRADO. El filtro va después de Limit, así que la página puede salir corta.
+        kwargs["FilterExpression"] = Attr("status").ne("CERRADO")
     start = http.decode_cursor(event)
     if start:
         # El cursor es opaco pero viene del cliente: no puede apuntar a otra partición.
