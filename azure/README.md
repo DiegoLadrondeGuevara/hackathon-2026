@@ -1,15 +1,23 @@
 # Azure: estado público de zonas
 
-Esta carpeta implementa solamente la parte Azure del [contrato entre nubes](../contracts/external.md). AWS publica el estado agregado de cada zona mediante HTTPS; Azure conserva la última versión en Table Storage y sirve una página pública. No se reciben datos personales, descripciones de clientes ni ubicaciones detalladas.
+Esta carpeta implementa la vista pública de Azure. AWS publica el último estado conocido de cada zona mediante HTTPS; Azure conserva la última versión en Table Storage y sirve la página. No se reciben datos personales, descripciones de clientes ni ubicaciones detalladas. El contrato general de la solución está en el [README principal](../README.md).
 
 ## Qué construimos
 
 1. `infra/main.bicep`: StorageV2 con Table Storage `EstadoZonas`, Function App `red-telecorp-estado-api-*` en Flex Consumption y Static Web App `red-telecorp-estado-publico-*` Free. Los sufijos globales son deterministas por suscripción, grupo y entorno.
 2. `api/function_app.py`: `PUT /api/estado/{zone_id}` con autorización **Function** (cabecera `x-functions-key`) y `GET /api/estado` anónimo.
 3. `api/status_store.py`: valida mensajes públicos, ignora eventos repetidos o más antiguos y usa ETag para impedir que una escritura concurrente antigua reemplace una nueva.
-4. `web/`: portal que consulta la API cada 30 segundos y avisa si la última sincronización supera 10 minutos. El portal conserva la última vista si la API falla.
+4. `web/`: portal que consulta la API cada 30 segundos, muestra los 12 nombres del catálogo de demo y distingue estados recientes, atrasados y aún no publicados. El portal conserva la última vista si la API falla.
 
-`PartitionKey` es siempre `ZONA` y `RowKey` es `zone_id`. Este diseño sirve para la demostración de 30 zonas; si el número de zonas crece mucho, habrá que repartir las particiones y paginar el listado.
+`PartitionKey` es siempre `ZONA` y `RowKey` es `zone_id`. El catálogo público actual tiene 12 zonas; las zonas adicionales que lleguen a Azure se muestran con su código y una indicación de nombre pendiente. Si el número de zonas crece mucho, habrá que repartir las particiones y paginar el listado.
+
+### Qué significa el estado público
+
+- `Z01` es **Miraflores**, `Z02` es **San Isidro** y `Z05` es **La Molina**. El mapa completo de las 12 zonas está en `web/app.js` y procede de `scripts/seed.py` de AWS. El API público de Azure todavía no entrega nombres, así que un cambio del catálogo de AWS requiere actualizar el mapa del portal.
+- La página muestra **todas las zonas del catálogo**, aunque Azure solo haya recibido eventos de algunas. Las que no tienen registro dicen «Sin información publicada»; no se interpretan como sanas.
+- Si `last_synced_at` supera 10 minutos, se presenta «Información por actualizar» y el estado anterior solo como antecedente. AWS no envía hoy un latido periódico de cada zona, por lo que esta advertencia es esperable incluso cuando no ocurrió ningún cambio operacional.
+- `SIN_INCIDENTE` se presenta como **«Sin alerta publicada»**, con la explicación de que el último evento recibido indicó un cierre. **No demuestra que no haya otra incidencia activa en la misma zona.** Actualmente `PublicadoraHaciaAzure` elige el evento más reciente por `zone_id`; un cierre puede reemplazar el estado de otro incidente aún activo.
+- Para corregir esa última limitación, AWS debe publicar una **proyección agregada por zona**: consultar todos los incidentes activos de la zona, derivar un único estado y prioridad públicos, y enviar `SIN_INCIDENTE` solo cuando no quede ninguno activo. También debe publicar una instantánea o latido periódico para mantener la vigencia. Esto requiere coordinación con el responsable AWS; un cambio visual en Azure no puede inferir incidentes que no recibió.
 
 ## Cuenta y costos
 
@@ -30,7 +38,7 @@ Primero intenta [Azure for Students](https://learn.microsoft.com/azure/education
 En Cloud Shell **Bash efímero**, la rama de Azure se puede obtener y revisar así. El grupo de recursos no genera cargos por sí mismo; `what-if` previsualiza cambios sin desplegar recursos. La consulta de salida muestra solo nombres y tipos de cambio, no los ajustes de la Function que incluyen una conexión de Storage.
 
 ```bash
-git clone --depth 1 --branch codex/azure-grafana https://github.com/DiegoLadrondeGuevara/hackathon-2026.git hackathon-azure
+git clone --depth 1 --branch codex/azure-public-status https://github.com/DiegoLadrondeGuevara/hackathon-2026.git hackathon-azure
 cd hackathon-azure
 az bicep build --file azure/infra/main.bicep
 az group create --name rg-red-telecorp-estado-dev --location eastus2 --output table
@@ -81,7 +89,7 @@ cd ~/hackathon-azure
 FUNCTION_APP=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.functionAppName.value' --output tsv)
 SWA_NAME=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.staticWebAppName.value' --output tsv)
 mkdir -p azure/web/dist
-cp azure/web/index.html azure/web/staticwebapp.config.json azure/web/dist/
+cp azure/web/index.html azure/web/styles.css azure/web/app.js azure/web/favicon.svg azure/web/staticwebapp.config.json azure/web/dist/
 printf 'window.RED_TELECORP_API_BASE_URL = "https://%s.azurewebsites.net";\n' "$FUNCTION_APP" > azure/web/dist/config.js
 export SWA_CLI_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group rg-red-telecorp-estado-dev --query 'properties.apiKey' --output tsv)
 npx --yes @azure/static-web-apps-cli deploy azure/web/dist --env production
@@ -98,6 +106,25 @@ Remove-Item Env:AZURE_SWA_DEPLOYMENT_TOKEN
 ```
 
 El token queda solo en la sesión local. No muestres ni compartas la salida de `az staticwebapp secrets list`.
+
+### Publicar esta mejora visual sin recrear recursos
+
+Esta versión está en la rama `codex/azure-public-status`. La Function App y la tabla existentes no cambian: solo hay que publicar `azure/web/dist` en la **Static Web App existente**. En Cloud Shell Bash, si el clon anterior desapareció por ser efímero, vuelve a clonarlo; si existe, entra en él y comprueba `git status --short` antes de actualizarlo.
+
+```bash
+git clone --depth 1 --branch codex/azure-public-status https://github.com/DiegoLadrondeGuevara/hackathon-2026.git ~/hackathon-azure
+cd ~/hackathon-azure
+FUNCTION_APP=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.functionAppName.value' --output tsv)
+SWA_NAME=$(az deployment group show --resource-group rg-red-telecorp-estado-dev --name red-telecorp-azure-dev --query 'properties.outputs.staticWebAppName.value' --output tsv)
+mkdir -p azure/web/dist
+cp azure/web/index.html azure/web/styles.css azure/web/app.js azure/web/favicon.svg azure/web/staticwebapp.config.json azure/web/dist/
+printf 'window.RED_TELECORP_API_BASE_URL = "https://%s.azurewebsites.net";\n' "$FUNCTION_APP" > azure/web/dist/config.js
+export SWA_CLI_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group rg-red-telecorp-estado-dev --query 'properties.apiKey' --output tsv)
+npx --yes @azure/static-web-apps-cli deploy azure/web/dist --env production
+unset SWA_CLI_DEPLOYMENT_TOKEN
+```
+
+Si el clon ya existe, reemplaza la primera línea por `git fetch origin && git switch --track origin/codex/azure-public-status` (o `git switch codex/azure-public-status && git pull --ff-only` si la rama local ya existe). Comprueba después la URL pública `https://mango-ground-073e60210.3.azurestaticapps.net`: debe mostrar los nombres de las zonas, el estado de sincronización y los filtros. La clave de la Function que usa AWS y el token de Grafana **no** se necesitan para desplegar esta página.
 
 ## Pruebas locales
 
@@ -123,16 +150,16 @@ La API devuelve `{"applied":true,...}` cuando guarda, y `{"applied":false,...}` 
 
 ## Estado del despliegue y entrega al equipo
 
-La cuenta Free Trial está activa y el grupo `rg-red-telecorp-estado-dev` contiene la Function, Storage/Table Storage y Static Web App. La API y el portal ya se publicaron. Se verificó CORS desde el portal, un `PUT` autenticado para `Z01` respondió `applied: true` y el `GET` público devolvió esa zona. Esto comprueba Azure de forma aislada; **todavía no demuestra la publicación desde AWS**.
+La cuenta Free Trial está activa y el grupo `rg-red-telecorp-estado-dev` contiene la Function, Storage/Table Storage y Static Web App. La API y la versión anterior del portal ya están publicadas. El `GET` público devolvió registros para `Z01`, `Z02` y `Z05` el 15/11/2026; `Z02` y `Z05` muestran `SIN_INCIDENTE`, que el publicador AWS produce al cerrar un incidente. Esta mejora visual está preparada en el repositorio, **aún no publicada en la Static Web App**.
 
 El equipo de AWS necesita ahora:
 
-1. La URL base pública `https://red-telecorp-estado-api-slx33vbj.azurewebsites.net` y la ruta `PUT /api/estado/{zone_id}`. El cuerpo y los estados permitidos están en [el contrato](../contracts/external.md). El portal público es `https://mango-ground-073e60210.3.azurestaticapps.net` para enlazarlo desde Amplify si lo desean.
-2. La **clave de la Function** `actualizar_estado`, llamada `aws-publisher`, por un canal privado. Es el valor de la cabecera `x-functions-key`; no es la clave de despliegue de Static Web Apps. Deben guardarla en SSM como `azure/api_key` y guardar la URL base como `azure/base_url`. Si la clave se expone, hay que rotarla y actualizar SSM.
-3. Implementar y probar `PublicadoraHaciaAzure` desde `ColaAzure`: `zone_id` estable, `updated_at` en UTC con zona horaria y creciente para cada zona, `status` en `SIN_INCIDENTE | EVALUACION | CONFIRMADO | RESTABLECIDO`, `priority` en `P1 | P2 | P3` o nula, y uno de los cuatro mensajes públicos exactos: `Sin incidencias`, `Evaluando`, `Incidencia identificada`, `Servicio restablecido`. `CERRADO` de AWS se traduce a `SIN_INCIDENTE`. No se envían PII ni texto libre de clientes.
-4. Acordar un **refresco periódico por zona**. El portal avisa si `last_synced_at` supera 10 minutos y Azure solo actualiza esa marca cuando recibe una versión con `updated_at` posterior. Si AWS envía exclusivamente `incident.updated`, una zona sin cambios aparecerá desactualizada. Una opción es publicar una instantánea o latido por zona cada menos de 10 minutos con `updated_at` nuevo; antes de hacerlo debemos definir si ese campo representa el momento de publicación o el del cambio operacional. Hasta acordarlo, la advertencia de antigüedad es esperable.
+1. AWS ya usa la URL base pública `https://red-telecorp-estado-api-slx33vbj.azurewebsites.net`, la ruta `PUT /api/estado/{zone_id}` y una Function key privada en `x-functions-key`. La clave se conserva en SSM como `azure/api_key` y la URL como `azure/base_url`; nunca se agrega a la web pública.
+2. `PublicadoraHaciaAzure` consume `ColaAzure` y envía `zone_id`, `updated_at` UTC, `status`, `priority` y un mensaje público aprobado. `CERRADO` se traduce a `SIN_INCIDENTE`. No se envían PII ni texto libre de clientes.
+3. Falta acordar un **refresco periódico por zona**. Azure solo actualiza `last_synced_at` al recibir una versión con `updated_at` posterior; si AWS envía exclusivamente cambios de incidente, una zona sin cambios aparecerá desactualizada. La instantánea o latido debe mantener separados el momento de publicación y el último cambio operacional.
+4. Falta sustituir el criterio «último evento de la zona» por un **resumen de todos los incidentes activos de la zona** antes de publicar `SIN_INCIDENTE`.
 
-Del equipo AWS necesitamos también la lista definitiva de `zone_id` del catálogo y una carga de prueba sin datos personales. Cuando su Lambda esté conectada, verificaremos el flujo `ColaAzure → PublicadoraHaciaAzure → PUT → EstadoZonas → GET → portal` y los reintentos/DLQ ante un error de Azure.
+El catálogo actual de AWS consta de 12 zonas en `scripts/seed.py`. Para cerrar la integración, el equipo debe verificar el flujo `ColaAzure → PublicadoraHaciaAzure → PUT → EstadoZonas → GET → portal` con varios incidentes simultáneos en una misma zona y probar reintentos/DLQ ante un fallo de Azure.
 
 Azure no requiere hoy ninguna credencial ni URL de GCP. La exportación a Grafana es una integración adicional pendiente; solo debe transmitir métricas sin PII.
 
