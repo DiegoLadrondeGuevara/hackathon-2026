@@ -6,7 +6,7 @@ import {
   Search, ShieldCheck, Signal, Users, X,
 } from 'lucide-react'
 import { ApiError, api, operatorApi, readableError } from './api'
-import type { OperatorIncident, Page, Report, Session, Suggestion, Trends, Zone } from './types'
+import type { OperatorIncident, Report, Session, Suggestion, Trends, Zone } from './types'
 import './operator.css'
 
 type View = 'queue' | 'incident' | 'reports' | 'report' | 'trends'
@@ -121,7 +121,6 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
   const [queueStatus, setQueueStatus] = useState<IncidentStatus>('EVALUACION')
   const [queueZone, setQueueZone] = useState('')
   const [incidents, setIncidents] = useState<OperatorIncident[]>([])
-  const [queueCursor, setQueueCursor] = useState<string | null>(null)
   const [queueState, setQueueState] = useState<LoadState>('idle')
   const [queueError, setQueueError] = useState<unknown>(null)
   const [queueAt, setQueueAt] = useState<string | null>(null)
@@ -137,7 +136,6 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
   const [suggestionError, setSuggestionError] = useState<unknown>(null)
   const [reportZone, setReportZone] = useState('')
   const [reports, setReports] = useState<Report[]>([])
-  const [reportsCursor, setReportsCursor] = useState<string | null>(null)
   const [reportsState, setReportsState] = useState<LoadState>('idle')
   const [reportsError, setReportsError] = useState<unknown>(null)
   const [reportLookup, setReportLookup] = useState('')
@@ -174,16 +172,15 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
       setZonesState('ready')
     } catch (error) { fail(error, setZonesError, setZonesState) }
   }
-  async function loadQueue(status = queueStatus, zone = queueZone, cursor?: string) {
+  async function loadQueue(status = queueStatus, zone = queueZone) {
     const requestId = ++queueRequest.current
     setQueueState('loading'); setQueueError(null)
-    if (!cursor) { setIncidents([]); setQueueCursor(null) }
+    setIncidents([])
     try {
-      const result: Page<OperatorIncident> = await operatorApi.incidents(session.token, status, zone || undefined, cursor)
+      const result = await operatorApi.incidents(session.token, status, zone || undefined)
       if (!Array.isArray(result.items)) throw new ApiError('Cola de incidentes inválida.', 200, 'INVALID_RESPONSE', '/incidentes')
       if (requestId !== queueRequest.current) return
-      setIncidents(old => cursor ? [...old, ...result.items] : result.items)
-      setQueueCursor(result.next_cursor ?? null)
+      setIncidents(result.items)
       setQueueAt(new Date().toISOString())
       setQueueState('ready')
     } catch (error) { if (requestId === queueRequest.current) fail(error, setQueueError, setQueueState) }
@@ -228,17 +225,17 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
       setSuggestion(result); setSuggestionState('ready')
     } catch (error) { fail(error, setSuggestionError, setSuggestionState) }
   }
-  async function loadReports(zone = reportZone, cursor?: string) {
+  async function loadReports(zone = reportZone) {
     if (!zone) return
     const requestId = ++reportsRequest.current
     setReportsState('loading'); setReportsError(null)
-    if (!cursor) { setReports([]); setReportsCursor(null) }
+    setReports([])
     try {
-      const result = await operatorApi.reports(session.token, zone, cursor)
+      const result = await operatorApi.reports(session.token, zone)
       if (!Array.isArray(result.items)) throw new ApiError('Lista de reportes inválida.', 200, 'INVALID_RESPONSE', '/reportes')
       if (requestId !== reportsRequest.current) return
-      setReports(old => cursor ? [...old, ...result.items] : result.items)
-      setReportsCursor(result.next_cursor ?? null); setReportsState('ready')
+      setReports(result.items)
+      setReportsState('ready')
     } catch (error) { if (requestId === reportsRequest.current) fail(error, setReportsError, setReportsState) }
   }
   async function loadReport(id: string) {
@@ -306,12 +303,11 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
       <main className="op-content">
         {view === 'queue' && <>
           <div className="op-heading"><div><span className="op-kicker">PANORAMA OPERATIVO</span><h1>Bandeja de incidentes</h1><p>Revisa las señales y toma decisiones con el historial a la vista.</p></div><button className="op-button outline" onClick={() => void loadQueue()} disabled={queueState === 'loading'}><RefreshCw size={16} /> Actualizar</button></div>
-          <div className="op-summary-grid"><div className="op-summary"><span><Activity size={19} /></span><div><small>Casos cargados</small><strong>{queueState === 'ready' ? number(incidents.length) : '—'}</strong><em>Solo páginas consultadas</em></div></div><div className="op-summary"><span className="red"><Bell size={19} /></span><div><small>Prioridad P1 visible</small><strong>{queueState === 'ready' ? number(incidents.filter(item => item.priority === 'P1').length) : '—'}</strong><em>En los casos cargados</em></div></div><div className="op-summary"><span className="blue"><Clock3 size={19} /></span><div><small>Última consulta</small><strong className="op-summary-time">{queueAt ? dateLabel(queueAt) : '—'}</strong><em>Actualización manual</em></div></div></div>
+          <div className="op-summary-grid"><div className="op-summary"><span><Activity size={19} /></span><div><small>Casos cargados</small><strong>{queueState === 'ready' ? number(incidents.length) : '—'}</strong><em>Del filtro actual</em></div></div><div className="op-summary"><span className="red"><Bell size={19} /></span><div><small>Prioridad P1 visible</small><strong>{queueState === 'ready' ? number(incidents.filter(item => item.priority === 'P1').length) : '—'}</strong><em>Del filtro actual</em></div></div><div className="op-summary"><span className="blue"><Clock3 size={19} /></span><div><small>Última consulta</small><strong className="op-summary-time">{queueAt ? dateLabel(queueAt) : '—'}</strong><em>Actualización manual</em></div></div></div>
           <section className="op-card op-queue-card"><div className="op-card-title"><div><span className="op-kicker">PRIORIZACIÓN</span><h2>Casos para revisar</h2></div><span className="op-card-note">La cola del API ordena por prioridad.</span></div>
             <div className="op-filters"><div className="op-status-tabs" role="group" aria-label="Filtrar por estado">{INCIDENT_STATUSES.map(status => <button key={status} className={queueStatus === status ? 'selected' : ''} onClick={() => setQueueStatus(status)}>{label(status)}</button>)}</div><div><label htmlFor="op-queue-zone">Zona</label><select id="op-queue-zone" value={queueZone} onChange={event => setQueueZone(event.target.value)} disabled={zonesState !== 'ready'}><option value="">Todas las zonas</option>{zones.map(zone => <option key={zone.zone_id} value={zone.zone_id}>{zone.name}</option>)}</select></div></div>
             {zonesState === 'error' && <ErrorBlock error={zonesError} onRetry={() => void loadZones()} />}
-            {queueState === 'loading' && !incidents.length ? <Loading /> : queueState === 'error' && !incidents.length ? <ErrorBlock error={queueError} onRetry={() => void loadQueue()} /> : incidents.length ? <><div className="op-table"><div className="op-table-head"><span>Prioridad / incidente</span><span>Zona y servicio</span><span>Estado</span><span>Impacto registrado</span><span>Actualizado</span></div>{incidents.map(item => <button className="op-table-row" key={item.incident_id} onClick={() => openIncident(item.incident_id)}><span><Priority value={item.priority} /><b>#{shortId(item.incident_id)}</b></span><span><strong>{zoneName(item.zone_id)}</strong><small>{label(item.service)}</small></span><span><Status value={item.status} /></span><span><strong>{number(item.affected_users)} usuarios</strong><small>{number(item.report_count)} reportes</small></span><span><small>{dateLabel(item.updated_at)}</small><ChevronRight size={17} /></span></button>)}</div>{queueState === 'error' && <ErrorBlock error={queueError} onRetry={() => void loadQueue(queueStatus, queueZone, queueCursor || undefined)} />}</> : queueState === 'ready' && <Empty icon={<Check size={24} />} title="Sin casos en esta consulta" text="Elige otro estado o zona para revisar más incidentes." />}
-            {queueCursor && <div className="op-more"><button className="op-button outline" disabled={queueState === 'loading'} onClick={() => void loadQueue(queueStatus, queueZone, queueCursor)}>{queueState === 'loading' && <LoaderCircle className="spin" size={15} />} Cargar más casos</button></div>}
+            {queueState === 'loading' && !incidents.length ? <Loading /> : queueState === 'error' && !incidents.length ? <ErrorBlock error={queueError} onRetry={() => void loadQueue()} /> : incidents.length ? <><div className="op-table"><div className="op-table-head"><span>Prioridad / incidente</span><span>Zona y servicio</span><span>Estado</span><span>Impacto registrado</span><span>Actualizado</span></div>{incidents.map(item => <button className="op-table-row" key={item.incident_id} onClick={() => openIncident(item.incident_id)}><span><Priority value={item.priority} /><b>#{shortId(item.incident_id)}</b></span><span><strong>{zoneName(item.zone_id)}</strong><small>{label(item.service)}</small></span><span><Status value={item.status} /></span><span><strong>{number(item.affected_users)} usuarios</strong><small>{number(item.report_count)} reportes</small></span><span><small>{dateLabel(item.updated_at)}</small><ChevronRight size={17} /></span></button>)}</div>{queueState === 'error' && <ErrorBlock error={queueError} onRetry={() => void loadQueue(queueStatus, queueZone)} />}</> : queueState === 'ready' && <Empty icon={<Check size={24} />} title="Sin casos en esta consulta" text="Elige otro estado o zona para revisar más incidentes." />}
           </section>
         </>}
         {view === 'incident' && <>
@@ -332,7 +328,7 @@ export default function OperatorApp({ session, onUnauthorized, onLogout }: Props
           <div className="op-heading"><div><span className="op-kicker">ATENCIÓN INDIVIDUAL</span><h1>Reportes por zona</h1><p>Consulta y actualiza el historial de cada reporte de cliente.</p></div><button className="op-button outline" disabled={!reportZone || reportsState === 'loading'} onClick={() => void loadReports()}><RefreshCw size={16} /> Actualizar</button></div>
           <section className="op-card"><div className="op-report-tools"><div><label htmlFor="op-report-zone">Zona de consulta</label><select id="op-report-zone" value={reportZone} onChange={event => setReportZone(event.target.value)} disabled={zonesState !== 'ready'}>{zones.map(zone => <option key={zone.zone_id} value={zone.zone_id}>{zone.name}</option>)}</select></div><form onSubmit={event => { event.preventDefault(); if (reportLookup.trim()) openReport(reportLookup.trim()) }}><label htmlFor="op-report-id">Buscar por identificador exacto</label><div><input id="op-report-id" value={reportLookup} onChange={event => setReportLookup(event.target.value)} placeholder="ID completo del reporte" /><button className="op-button primary" type="submit" disabled={!reportLookup.trim()}><Search size={16} /> Abrir</button></div></form></div><p className="op-context-note">La lista contiene reportes de la zona elegida; no implica que todos estén vinculados al mismo incidente.</p>
             {zonesState === 'loading' ? <Loading text="Cargando zonas…" /> : zonesState === 'error' ? <ErrorBlock error={zonesError} onRetry={() => void loadZones()} /> : !reportZone ? <Empty icon={<MapPin size={25} />} title="No hay zonas disponibles" text="El catálogo no devolvió zonas para consultar." /> : reportsState === 'loading' && !reports.length ? <Loading /> : reportsState === 'error' && !reports.length ? <ErrorBlock error={reportsError} onRetry={() => void loadReports()} /> : reports.length ? <div className="op-report-list">{reports.map(item => <button key={item.report_id} onClick={() => openReport(item.report_id)}><span className="op-report-icon"><FileText size={20} /></span><span><strong>{label(item.problem_type)}</strong><small>#{shortId(item.report_id)} · {label(item.service)} · {dateLabel(item.created_at)}</small></span><Status value={item.status} /><ChevronRight size={18} /></button>)}</div> : reportsState === 'ready' && <Empty icon={<FileText size={24} />} title="Sin reportes en esta zona" text="Elige otra zona o busca un ID de reporte conocido." />}
-            {reportsState === 'error' && reports.length > 0 && <ErrorBlock error={reportsError} onRetry={() => void loadReports(reportZone, reportsCursor || undefined)} />}{reportsCursor && <div className="op-more"><button className="op-button outline" disabled={reportsState === 'loading'} onClick={() => void loadReports(reportZone, reportsCursor)}>{reportsState === 'loading' && <LoaderCircle className="spin" size={15} />} Cargar más reportes</button></div>}
+            {reportsState === 'error' && reports.length > 0 && <ErrorBlock error={reportsError} onRetry={() => void loadReports(reportZone)} />}
           </section>
         </>}
         {view === 'report' && <>
