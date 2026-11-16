@@ -74,7 +74,8 @@ function stateFor(row) {
   if (!Number.isFinite(receivedAt) || Date.now() - receivedAt > STALE_AFTER_MS || receivedAt > Date.now() + 60_000) {
     return {
       badge: "Información por actualizar",
-      description: `Último estado recibido: ${known.badge.toLowerCase()}. No lo mostramos como estado actual.`,
+      description: "Esta información puede estar desfasada respecto a la hora actual.",
+      lastStatus: known,
       tone: "pending", kind: "pending", rank: 3,
     };
   }
@@ -101,7 +102,11 @@ function createCard(zone) {
   const headingText = add(heading, "div");
   add(headingText, "h3", "zone-name", zone.name);
   add(headingText, "span", "zone-id", `ZONA ${zone.id}`);
-  add(card, "span", `zone-badge ${zone.state.tone}`, zone.state.badge);
+  const badges = add(card, "div", "zone-badges");
+  add(badges, "span", `zone-badge ${zone.state.tone}`, zone.state.badge);
+  if (zone.state.lastStatus) {
+    add(badges, "span", `zone-badge ${zone.state.lastStatus.tone}`, `Último estado: ${zone.state.lastStatus.badge}`);
+  }
   add(card, "p", "zone-description", zone.state.description);
   if (zone.row) {
     add(card, "p", "zone-last", `Recibido en Azure: ${formattedTime(zone.row.last_synced_at)}`);
