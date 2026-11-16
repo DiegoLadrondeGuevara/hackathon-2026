@@ -64,6 +64,28 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T
 }
 
+async function requestAllPages<T>(path: string, token: string, params: URLSearchParams): Promise<Page<T>> {
+  const items: T[] = []
+  const seenCursors = new Set<string>()
+  let cursor: string | null = null
+
+  do {
+    if (cursor) params.set('cursor', cursor)
+    const page = await request<Page<T>>(`${path}?${params}`, { token })
+    if (!Array.isArray(page.items)) {
+      throw new ApiError('El servicio devolvió una lista inválida.', 200, 'INVALID_RESPONSE', path)
+    }
+    items.push(...page.items)
+    cursor = page.next_cursor ?? null
+    if (cursor && seenCursors.has(cursor)) {
+      throw new ApiError('El servicio repitió una página. Vuelve a consultar la lista.', 200, 'INVALID_RESPONSE', path)
+    }
+    if (cursor) seenCursors.add(cursor)
+  } while (cursor)
+
+  return { items, next_cursor: null }
+}
+
 export interface LoginResponse {
   token: string
   expires_in: number
@@ -75,38 +97,28 @@ export const api = {
   login: (identifier: string, password: string) =>
     request<LoginResponse>('/auth/login', { method: 'POST', body: { identifier, password } }),
   zones: (token: string) => request<{ items: Zone[] }>('/zonas', { token }),
-  reports: (token: string, cursor?: string) => {
-    const query = new URLSearchParams({ limit: '12' })
-    if (cursor) query.set('cursor', cursor)
-    return request<Page<Report>>(`/reportes?${query}`, { token })
-  },
+  reports: (token: string) =>
+    requestAllPages<Report>('/reportes', token, new URLSearchParams({ limit: '100' })),
   report: (token: string, id: string) => request<Report>(`/reportes/${encodeURIComponent(id)}`, { token }),
   createReport: (token: string, body: CreateReportBody, idempotencyKey: string) =>
     request<Report>('/reportes', { method: 'POST', token, body, idempotencyKey }),
-  incidents: (token: string, zoneId: string, cursor?: string) => {
-    const query = new URLSearchParams({ zone_id: zoneId, limit: '20' })
-    if (cursor) query.set('cursor', cursor)
-    return request<Page<Incident>>(`/incidentes?${query}`, { token })
-  },
+  incidents: (token: string, zoneId: string) =>
+    requestAllPages<Incident>('/incidentes', token, new URLSearchParams({ zone_id: zoneId, limit: '100' })),
 }
 
 export const operatorApi = {
-  incidents: (token: string, status: string, zoneId?: string, cursor?: string) => {
-    const query = new URLSearchParams({ status, limit: '20' })
+  incidents: (token: string, status: string, zoneId?: string) => {
+    const query = new URLSearchParams({ status, limit: '100' })
     if (zoneId) query.set('zone_id', zoneId)
-    if (cursor) query.set('cursor', cursor)
-    return request<Page<OperatorIncident>>(`/incidentes?${query}`, { token })
+    return requestAllPages<OperatorIncident>('/incidentes', token, query)
   },
   incident: (token: string, id: string) => request<OperatorIncident>(`/incidentes/${encodeURIComponent(id)}`, { token }),
   updateIncident: (token: string, id: string, toStatus: string, reason: string) =>
     request<OperatorIncident>(`/incidentes/${encodeURIComponent(id)}/estado`, {
       method: 'PATCH', token, body: { to_status: toStatus, reason },
     }),
-  reports: (token: string, zoneId: string, cursor?: string) => {
-    const query = new URLSearchParams({ zone_id: zoneId, limit: '20' })
-    if (cursor) query.set('cursor', cursor)
-    return request<Page<Report>>(`/reportes?${query}`, { token })
-  },
+  reports: (token: string, zoneId: string) =>
+    requestAllPages<Report>('/reportes', token, new URLSearchParams({ zone_id: zoneId, limit: '100' })),
   report: (token: string, id: string) => request<Report>(`/reportes/${encodeURIComponent(id)}`, { token }),
   updateReport: (token: string, id: string, toStatus: string, reason: string) =>
     request<Report>(`/reportes/${encodeURIComponent(id)}/estado`, {

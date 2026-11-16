@@ -22,18 +22,18 @@ En PowerShell, usa `Copy-Item .env.example .env`. El archivo `.env` es opcional:
 | --- | --- | --- |
 | Acceso | `POST /auth/login` | JWT de 15 minutos en memoria. |
 | Nuevo reporte | `GET /zonas`, `POST /reportes` | Envía la solicitud con `Idempotency-Key`; el formulario exige zona, referencia y fecha válida. |
-| Mis reportes | `GET /reportes?limit=12&cursor=…` | Lista solo los propios, con paginación. |
+| Mis reportes | `GET /reportes?limit=100&cursor=…` | Carga automáticamente todas las páginas de reportes propios y presenta una sola lista. |
 | Detalle | `GET /reportes/{id}` | Muestra estado e historial. |
-| Estado de zona | `GET /incidentes?zone_id=…&limit=20&cursor=…` | Vista pública del incidente, sin exponer el detalle operacional. |
+| Estado de zona | `GET /incidentes?zone_id=…&limit=100&cursor=…` | Consulta todas las páginas de incidentes visibles de la zona, sin exponer el detalle operacional. |
 
 ## Flujos de operadores
 
 | Vista | Ruta AWS | Función |
 | --- | --- | --- |
-| Bandeja | `GET /incidentes?status=…&zone_id=…&limit=20&cursor=…` | Filtra por estado y zona; muestra la prioridad y el impacto que devuelve AWS. Los contadores indican solo las páginas cargadas. |
+| Bandeja | `GET /incidentes?status=…&zone_id=…&limit=100&cursor=…` | Filtra por estado y zona, carga automáticamente todas las páginas y muestra la prioridad y el impacto que devuelve AWS. Los contadores corresponden al filtro actual. |
 | Incidente | `GET /incidentes/{id}` | Evidencia colectiva y técnica, antenas relacionadas, recuperación e historial. Un incidente puede nacer de reportes aun sin antena vinculada. |
 | Decisión sobre incidente | `PATCH /incidentes/{id}/estado` | Solo transiciones permitidas. Exige un motivo y una revisión antes de confirmar; 409 actualiza el detalle para resolver un cambio concurrente. |
-| Reportes por zona | `GET /reportes?zone_id=…&limit=20&cursor=…` | Muestra reportes de la zona, sin afirmar que todos pertenezcan al mismo incidente. También permite abrir un ID completo. |
+| Reportes por zona | `GET /reportes?zone_id=…&limit=100&cursor=…` | Carga automáticamente todos los reportes de la zona, sin afirmar que pertenezcan al mismo incidente. También permite abrir un ID completo. |
 | Reporte individual | `GET /reportes/{id}`, `PATCH /reportes/{id}/estado` | Consulta historial y cambia estado con motivo y confirmación. Solo muestra la terminación del número de servicio. |
 | Tendencias | `GET /tendencias?days=7\|30` | Zonas, antenas, tipos de problemas, recurrencia y tiempo de detección. Se consulta al abrir la vista o al cambiar de periodo. |
 | Apoyo de IA | `GET /incidentes/{id}/sugerencia` | Se solicita expresamente desde el detalle. Si GCP no responde, `available:false` se presenta sin bloquear el trabajo. La IA no decide el estado. |
@@ -53,20 +53,20 @@ El [`amplify.yml`](../../amplify.yml) de la raíz construye `frontend/cliente` c
    | `VITE_API_BASE_URL` | `https://ynyvt8x51k.execute-api.us-east-1.amazonaws.com` |
    | `VITE_AZURE_STATUS_URL` | `https://mango-ground-073e60210.3.azurestaticapps.net` |
 
-4. Despliega y comprueba acceso de ambos roles, CORS desde el dominio final, detalles, paginación y vencimiento de sesión.
+4. Despliega y comprueba acceso de ambos roles, CORS desde el dominio final, listas completas, detalles y vencimiento de sesión.
 5. Si se usarán rutas SPA profundas, configura una reescritura 200 a `/index.html` para rutas sin extensión. La versión actual navega sin cambiar la URL, así que no depende de esa regla.
 
 Los valores `VITE_` son públicos en el JavaScript generado. **No coloques** contraseña de demo, JWT, claves de AWS, Azure o Grafana en las variables del frontend. El login utiliza directamente el backend.
 
-**Cloudflare sigue pendiente.** Se integrará cuando haya un dominio propio y una URL de Amplify activa. El proxy podrá observar el tráfico del portal, mientras que las llamadas directas del navegador a `execute-api` no atravesarán ese proxy. Las respuestas privadas no deben quedar en caché.
+El Worker público de Cloudflare está en `https://royal-brook-e9c2.ldeguevaradiego.workers.dev/`. Reenvía por HTTPS las solicitudes del portal a la aplicación Amplify; el navegador sigue llamando directamente a `execute-api`, por lo que esas peticiones no pasan por el Worker. El Worker utiliza la misma URL de origen de Amplify y no requiere cambios cuando se publica una nueva versión del frontend. La URL original de Amplify continúa accesible.
 
 ## Verificación y límites
 
-- `npm run build` pasó el 15/11/2026.
+- `npm run build` pasó después de retirar la paginación visible y cargar automáticamente todas las páginas.
 - Con el operador de demo se verificaron en navegador el login, la bandeja por estado, un incidente con historial, la lista y detalle de reportes por zona y las tendencias de 7 días. El API respondió con datos reales, incluidas antenas recurrentes.
 - Se revisaron las vistas móvil y de escritorio. La pantalla de acceso móvil se ajustó para separar marca y formulario.
 - No se ejecutaron `PATCH` ni se solicitó una sugerencia de IA durante esta revisión para no modificar los casos de la demo ni generar consumo externo. Esas rutas están integradas y deben probarse de extremo a extremo con un caso desechable del equipo.
-- El backend no ofrece por ahora una lista de IDs de reportes vinculados a un incidente; el portal solo muestra el conteo confirmado por AWS y la lista zonal por separado. Tampoco ofrece un total global de la bandeja, por eso los indicadores describen las páginas cargadas.
-- La aplicación Amplify y Cloudflare todavía requieren publicación y validación desde sus dominios finales.
+- El backend no ofrece por ahora una lista de IDs de reportes vinculados a un incidente; el portal solo muestra el conteo confirmado por AWS y la lista zonal por separado. Tampoco ofrece un total global de la bandeja: los indicadores describen el estado y la zona seleccionados.
+- La URL de producción de Cloudflare respondió por HTTPS con el HTML y el JavaScript del portal. Tras publicar esta revisión en Amplify, hay que comprobar el nuevo contenido en ambas URL.
 
 Para el contexto general y los estados de negocio, consulta el [README principal](../../README.md).
